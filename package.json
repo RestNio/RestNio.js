@@ -4,7 +4,8 @@
   "description": "Node implementation of RestNio, the easy peasy API system.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "start": "node index.js"
   },
   "repository": {
     "type": "git",
