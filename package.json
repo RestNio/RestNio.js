@@ -1,0 +1,29 @@
+{
+  "name": "restnio",
+  "version": "1.0.0",
+  "description": "Node implementation of RestNio, the easy peasy API system.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RestNio/RestNio.js.git"
+  },
+  "keywords": [
+    "api",
+    "websocket",
+    "http",
+    "server",
+    "rest"
+  ],
+  "author": "7kasper",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/RestNio/RestNio.js/issues"
+  },
+  "homepage": "https://github.com/RestNio/RestNio.js#readme",
+  "dependencies": {
+    "mocha": "^5.2.0"
+  }
+}
