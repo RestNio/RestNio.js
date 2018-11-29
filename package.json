@@ -25,6 +25,14 @@
   },
   "homepage": "https://github.com/RestNio/RestNio.js#readme",
   "dependencies": {
-    "mocha": "^5.2.0"
+    "ws": "^6.1.0"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0",
+    "should": "^13.2.3"
+  },
+  "optionalDependencies": {
+    "bufferutil": "^4.0.0",
+    "utf-8-validate": "^5.0.1"
   }
 }

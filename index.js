@@ -4,4 +4,5 @@
  * Licensed under MIT
  *   -= RestNio =-
  */
+
 module.exports = require('./lib/RestNio');
