@@ -26,6 +26,7 @@
   "homepage": "https://github.com/RestNio/RestNio.js#readme",
   "dependencies": {
     "lodash": "^4.17.11",
+    "query-string": "^6.2.0",
     "ws": "^6.1.0"
   },
   "devDependencies": {
