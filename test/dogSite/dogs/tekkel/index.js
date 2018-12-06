@@ -7,10 +7,18 @@ module.exports = (router) => {
             //     client.end(JSON.stringify(result));
             // });
             // return Infinity;
+            // return new Promise((resolve, reject) => {
+            //      let jan = getFromDB();
+            //      resolve(jan);   
+            // }
         } else {
             return "AUW WOOF!";
         }
-    }, [], 
-    ['dogs.tekkel.schop.$hard', 'animals.breeder']);
+    },
+    { hard: { required: true, parse: true, type: 'boolean' }},
+    ['dogs.tekkel.schop.$hard', 'animals.bystander']);
+    // router.get('/give', (params) => {
+
+    // });
     return router;
 }
