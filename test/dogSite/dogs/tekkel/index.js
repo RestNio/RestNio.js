@@ -15,7 +15,7 @@ module.exports = (router) => {
             return "AUW WOOF!";
         }
     },
-    { hard: { required: true, parse: true, type: 'boolean' }},
+    { hard: { required: true, type: 'boolean' }},
     ['dogs.tekkel.schop.$hard', 'animals.bystander']);
     // router.get('/give', (params) => {
 
