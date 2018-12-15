@@ -1,6 +1,7 @@
-const RNIO = require('../../../../index');
-const $f = RNIO.params.formatters;
-const $c = RNIO.params.checks;
+require('../../../../lib/routes/Router');
+const rnio = require('../../../../index');
+const $f = rnio.params.formatters;
+const $c = rnio.params.checks;
 
 module.exports = (router) => {
 
@@ -24,6 +25,21 @@ module.exports = (router) => {
         }
     },
     ['dogs.tekkel.schop.$hard', 'animals.bystander']);
+
+    router.get('/meep', {
+        paramdefs: {
+            hard: {
+                required: true,
+                type: 'boolean'
+            }
+        },
+        permissions: [
+            'dog.meep'
+        ],
+        func: (params) => {
+            return params.hard;
+        }
+    });
 
     router.get('/cuddle', (params) => {
         return "Cuddled tekkel " + params.times + " times!";
