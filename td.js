@@ -1,5 +1,12 @@
-console.log(require('./lib/util/jsUtils').isIterable(true));
+// console.log(require('./lib/util/jsUtils').isIterable(true));
 
+var re = /\$([^.]+)/g;
+var s = 'dogs.$tekkel.kick';
+
+console.log(s.replace(re, (match, g1) => {
+    console.log(match, g1);
+    return 'yes';
+}));
 
 // let permission = 'test.dogs.tekkel.cuddle'; //required
 // let holder = [
