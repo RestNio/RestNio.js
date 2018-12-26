@@ -1,7 +1,8 @@
 require('../../../../lib/routes/Router');
 const rnio = require('../../../../index');
-const $f = rnio.params.formatters;
-const $c = rnio.params.checks;
+const $p = rnio.params;
+const $f = $p.formatters;
+const $c = $p.checks;
 
 module.exports = (router) => {
 
@@ -27,7 +28,7 @@ module.exports = (router) => {
     ['dogs.tekkel.schop.$hard', 'animals.bystander']);
 
     router.get('/meep', {
-        paramdefs: {
+        params: {
             hard: {
                 required: true,
                 type: 'boolean'
@@ -40,6 +41,10 @@ module.exports = (router) => {
             return params.hard;
         }
     });
+
+    router.all('/email', (params) => {
+        return "Sending email to dog from: " + params.mail;
+    }, {mail:$p.email});
 
     router.get('/cuddle', (params) => {
         return "Cuddled tekkel " + params.times + " times!";
