@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/RestNio/RestNio.js#readme",
   "dependencies": {
+    "jsonwebtoken": "^8.4.0",
     "lodash": "^4.17.11",
     "qs": "^6.6.0",
     "query-string": "^6.2.0",

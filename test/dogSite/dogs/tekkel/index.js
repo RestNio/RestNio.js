@@ -1,7 +1,8 @@
 require('../../../../lib/routes/Router');
 const rnio = require('../../../../index');
-const $f = rnio.params.formatters;
-const $c = rnio.params.checks;
+const $p = rnio.params;
+const $f = $p.formatters;
+const $c = $p.checks;
 
 module.exports = (router) => {
 
@@ -24,26 +25,41 @@ module.exports = (router) => {
             ]
         }
     },
-    ['dogs.tekkel.schop.$hard', 'animals.bystander']);
+    /*['dogs.tekkel.schop.$hard', 'animals.bystander']*/);
 
     router.get('/meep', {
-        paramdefs: {
+        params: {
             hard: {
                 required: true,
                 type: 'boolean'
             }
         },
         permissions: [
-            'dog.meep'
+            //'dog.meep'
         ],
         func: (params) => {
             return params.hard;
         }
     });
 
+    router.all('/email', (params) => {
+        return "Sending email to dog from: " + params.mail;
+    }, {mail:$p.email});
+
     router.get('/cuddle', (params) => {
         return "Cuddled tekkel " + params.times + " times!";
-    }, {times: {required: true, type: 'number', prechecks: [$c.num.min(1)], formatters: [$f.num.add(2)], checks: [$c.num.max(5)]}});
+    }, {
+        times: {
+            required: true,
+            type: 'number',
+            prechecks: [$c.num.min(1)],
+            formatters: [$f.num.add(2)],
+            checks: [$c.num.max(5)]
+        }
+    }, [
+        //'dogs.tekkel.cuddle',
+        'dogs.tekkel.cuddle.$times'
+    ]);
 
     router.get('/feed', (params, client) => {
         client.json({eaten: true});
