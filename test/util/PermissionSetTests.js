@@ -1,5 +1,5 @@
 const should = require('should');
-const PermissionSet = require('../lib/util/PermissionSet');
+const PermissionSet = require('../../lib/util/PermissionSet');
 describe('PermissionSet', () => {
     let set = new PermissionSet();
     describe('#add()', () => {
@@ -23,6 +23,7 @@ describe('PermissionSet', () => {
             set.addAll(['test.meep', 'test.kees']);
             set.should.containEql('test.kees');
             set.should.containEql('test.meep');
+            set.should.eq
         });
     });
     describe('#has()', () => {

@@ -1,10 +1,9 @@
 const RestNio = require('./');
-let security = {
-    secret: 'dogshite',
-    signOptions: {
-        expiresIn: '1h'
-    }
-}
-let dogSite = new RestNio(7070, require('./test/dogSite'), security);
+let options = {
+    port: 7070
+};
+let dogSite = new RestNio(router => {
+    router.get('/', () => 'hey :D');
+});
 console.log(dogSite.routes);
 dogSite.bind();

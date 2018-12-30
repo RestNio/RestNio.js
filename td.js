@@ -1,7 +1,9 @@
+
+
 // console.log(require('./lib/util/jsUtils').isIterable(true));
 
 var re = /\$([^.]+)/g;
-var s = 'dogs.$tekkel.kick';
+var s = 'dogs.$tekkel.kick.$meep';
 
 console.log(s.replace(re, (match, g1) => {
     console.log(match, g1);
