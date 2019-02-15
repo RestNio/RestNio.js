@@ -1,14 +1,16 @@
 
 
 // console.log(require('./lib/util/jsUtils').isIterable(true));
+const caller = require('caller-callsite');
+console.log(caller().getFileName());
 
-var re = /\$([^.]+)/g;
-var s = 'dogs.$tekkel.kick.$meep';
+// var re = /\$([^.]+)/g;
+// var s = 'dogs.$tekkel.kick.$meep';
 
-console.log(s.replace(re, (match, g1) => {
-    console.log(match, g1);
-    return 'yes';
-}));
+// console.log(s.replace(re, (match, g1) => {
+//     console.log(match, g1);
+//     return 'yes';
+// }));
 
 // let permission = 'test.dogs.tekkel.cuddle'; //required
 // let holder = [

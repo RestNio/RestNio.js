@@ -1,6 +1,6 @@
 {
   "name": "restnio",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Node implementation of RestNio, the easy peasy API system.",
   "main": "index.js",
   "scripts": {
@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/RestNio/RestNio.js#readme",
   "dependencies": {
+    "caller-callsite": "^3.0.0",
     "jsonwebtoken": "^8.4.0",
     "lodash": "^4.17.11",
     "qs": "^6.6.0",
