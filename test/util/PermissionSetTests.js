@@ -15,15 +15,15 @@ describe('PermissionSet', () => {
     });
     describe('#addAll()', () => {
         it('should add permissions spreaded out...', () => {
-            set.addAll('test.cats.*.cuddle', 'test.dogs.tekkel.cuddle');
+            set.add('test.cats.*.cuddle', 'test.dogs.tekkel.cuddle');
             set.should.containEql('test.cats.*.cuddle');
             set.should.containEql('test.dogs.tekkel.kick');
         });
         it('should add permissions specified in array too...', () => {
-            set.addAll(['test.meep', 'test.kees']);
+            set.add(['test.meep', 'test.kees', 'test./^\\w$/.hi']);
             set.should.containEql('test.kees');
             set.should.containEql('test.meep');
-            set.should.eq
+            set.should.containEql('test./^\\w$/.hi');
         });
     });
     describe('#has()', () => {
@@ -31,9 +31,12 @@ describe('PermissionSet', () => {
             set.has('test.dogs.tekkel.kick').should.be.true();
             set.has('test.cats.poes.cuddle').should.be.true();
             set.has('test.cats.kat.cuddle').should.be.true();
+            set.has('test./^\\w$/.hi').should.be.true();
+            set.has('test.h.hi').should.be.true();
         });
         it('should not have access to other permissions...', () => {
             set.has('test.cats.poes.kick').should.be.false();
+            set.has('test.hi.hi').should.be.false();
         });
     });
 });
