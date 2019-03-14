@@ -4,7 +4,7 @@ let dogSite = new RestNio((router, restnio) => {
     router.get('/', () => {
         return [...restnio.routes];
     });
-    router.use(restnio.serve('./README.md'));
+    router.use(restnio.serve('./test'));
 }, {port: 7070});
 console.dir(dogSite.routes);
 dogSite.bind();
