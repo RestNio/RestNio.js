@@ -24,6 +24,8 @@ module.exports = (router, rnio) => {
         }
     });
 
+    router.use('/hello', rnio.serve('C:/Users/kaspe/git/RestNio.js/test/dogSite/mb.html'));
+
     router.use('/dogs', require('./dogs'));
     router.copy('/dogs', '/dogs/');
     return router;
