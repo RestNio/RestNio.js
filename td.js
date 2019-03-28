@@ -1,8 +1,23 @@
 
 
+function bakeRegex(str) {
+    str = str.replace(/\*/g, '\\w*');
+    let rex = /\$([a-zA-Z_$][0-9a-zA-Z_$]*)/g;
+    let match = rex.exec(str);
+    while(match != null) {
+      console.log(match);
+      str = str.replace(match[0], `(?<${match[1]}>\\w*)`);
+      match = rex.exec(str);
+    }
+    return new RegExp(str);
+  }
+
+
+
+
 // console.log(require('./lib/util/jsUtils').isIterable(true));
-const caller = require('caller-callsite');
-console.log(caller().getFileName());
+// const caller = require('caller-callsite');
+// console.log(caller().getFileName());
 
 // var re = /\$([^.]+)/g;
 // var s = 'dogs.$tekkel.kick.$meep';
