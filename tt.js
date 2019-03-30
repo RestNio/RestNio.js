@@ -5,7 +5,7 @@ let dogSite = new RestNio((router, restnio) => {
     //     return [...restnio.routes];
     // });
 
-    router.all('/*/hi', () => {
+    router.all('/$name/hi', () => {
         return 'Lolalalala';
     });
     // router.use(restnio.serve('./README.md'));
