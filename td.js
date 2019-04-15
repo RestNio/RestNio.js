@@ -1,16 +1,41 @@
 
+const RestNio = require('./');
 
-function bakeRegex(str) {
-    str = str.replace(/\*/g, '\\w*');
-    let rex = /\$([a-zA-Z_$][0-9a-zA-Z_$]*)/g;
-    let match = rex.exec(str);
-    while(match != null) {
-      console.log(match);
-      str = str.replace(match[0], `(?<${match[1]}>\\w*)`);
-      match = rex.exec(str);
-    }
-    return new RegExp(str);
-  }
+let dogSite = new RestNio((router, restnio) => {
+    // router.get('/', () => {
+    //     return [...restnio.routes];
+    // });
+
+    router.all('/$name/hi', (params) => {
+        return `${params.name} is een aardig persoon.`;
+    });
+
+    router.get('/day/maandag', () => 'Dat is een leuke dag');
+    router.get('/location/*/give', () => 'nu gaat ie mis');
+
+    router.use('/derp', (router) => {
+        router.get('/', () => 'derpindex');
+        router.get('/name', () => 'kasper');
+    }, true);
+
+    router.redirect('/test', '/derp/name');
+
+    // router.use(restnio.serve('./README.md'));
+}, {port: 7070});
+console.dir(dogSite.routes);
+dogSite.bind();
+
+// function bakeRegex(str) {
+//     str = str.replace(/\*/g, '\\w*');
+//     let rex = /\$([a-zA-Z_$][0-9a-zA-Z_$]*)/g;
+//     let match = rex.exec(str);
+//     while(match != null) {
+//       console.log(match);
+//       str = str.replace(match[0], `(?<${match[1]}>\\w*)`);
+//       match = rex.exec(str);
+//     }
+//     return new RegExp(str);
+//   }
 
 
 
