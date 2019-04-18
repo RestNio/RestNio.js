@@ -6,18 +6,25 @@ let dogSite = new RestNio((router, restnio) => {
     //     return [...restnio.routes];
     // });
 
+    router.use(restnio.cors());
+
+    router.use(restnio.serve('./skin.png', true));
+
     router.all('/$name/hi', (params) => {
         return `${params.name} is een aardig persoon.`;
     });
 
+    // router.get(`/day/maandag`);
     router.get('/day/maandag', () => 'Dat is een leuke dag');
     router.get('/location/*/give', () => 'nu gaat ie mis');
+
+    router.get('/mayday/$type', (p) => {console.log(`REPORTING MAYDAY ${p.type}`)});
+    router.get('/mayday/[Oo]range', () => 'ORAAANNNGGEEE');
 
     router.use('/derp', (router) => {
         router.get('/', () => 'derpindex');
         router.get('/name', () => 'kasper');
     }, true);
-
     router.redirect('/test', '/derp/name');
 
     // router.use(restnio.serve('./README.md'));

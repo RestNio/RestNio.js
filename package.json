@@ -27,6 +27,7 @@
   "dependencies": {
     "jsonwebtoken": "^8.4.0",
     "lodash": "^4.17.11",
+    "mime-types": "^2.1.23",
     "qs": "^6.6.0",
     "query-string": "^6.2.0",
     "ws": "^6.1.0"
