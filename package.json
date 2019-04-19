@@ -1,6 +1,6 @@
 {
   "name": "restnio",
-  "version": "2.2.2",
+  "version": "3.0.0",
   "description": "Node implementation of RestNio, the easy peasy API system.",
   "main": "index.js",
   "scripts": {
@@ -25,12 +25,12 @@
   },
   "homepage": "https://github.com/RestNio/RestNio.js#readme",
   "dependencies": {
-    "jsonwebtoken": "^8.4.0",
+    "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.11",
     "mime-types": "^2.1.23",
-    "qs": "^6.6.0",
-    "query-string": "^6.2.0",
-    "ws": "^6.1.0"
+    "qs": "^6.7.0",
+    "query-string": "^6.4.2",
+    "ws": "^6.2.1"
   },
   "devDependencies": {
     "mocha": "^5.2.0",
