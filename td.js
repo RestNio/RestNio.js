@@ -9,10 +9,13 @@ let dogSite = new RestNio((router, restnio) => {
     router.use(restnio.cors());
 
     router.use(restnio.serve('./skin.png', true));
+    router.use(restnio.serve('./dope.html', true));
 
     router.all('/$name/hi', (params) => {
         return `${params.name} is een aardig persoon.`;
     });
+
+    router.get('/meep', () => {return{name: 'trudy', age: 5}});
 
     // router.get(`/day/maandag`);
     router.get('/day/maandag', () => 'Dat is een leuke dag');
