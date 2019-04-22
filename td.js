@@ -6,12 +6,12 @@ let dogSite = new RestNio((router, restnio) => {
     //     return [...restnio.routes];
     // });
 
-    router.use(restnio.cors());
+    //router.use(restnio.cors());
 
     router.use(restnio.serve('./skin.png', true));
     router.use(restnio.serve('./dope.html', true));
 
-    router.all('/$name/hi', (params) => {
+    router.all('/:name/hi', (params) => {
         return `${params.name} is een aardig persoon.`;
     });
 
@@ -21,7 +21,7 @@ let dogSite = new RestNio((router, restnio) => {
     router.get('/day/maandag', () => 'Dat is een leuke dag');
     router.get('/location/*/give', () => 'nu gaat ie mis');
 
-    router.get('/mayday/$type', (p) => {console.log(`REPORTING MAYDAY ${p.type}`)});
+    router.get('/mayday/:type', (p) => {console.log(`REPORTING MAYDAY ${p.type}`)});
     router.get('/mayday/[Oo]range', () => 'ORAAANNNGGEEE');
 
     router.use('/derp', (router) => {
