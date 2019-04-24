@@ -8,12 +8,16 @@ let dogSite = new RestNio((router, restnio) => {
 
     //router.use(restnio.cors());
 
-    router.use(restnio.serve('./dope/', { cache: false, doListing: true, recursive: true }), false);
-    // router.use(restnio.serve('./dope.html', true));
+    // router.all('/:name/hi', (params) => {
+    //     return `${params.name} is een aardig persoon.`;
+    // });
 
-    router.all('/:name/hi', (params) => {
-        return `${params.name} is een aardig persoon.`;
-    });
+    // router.get('/:name/grat', (params) => `${params.name} says thanks!`, {}, ['grat.:name']);
+
+    // router.get('[i]/getperm', () => restnio.token.sign({permissions: ['grat./kasper+$/']}));
+
+    router.use(restnio.serve('C:/Users/kaspe/Documents/magbot/', { cache: true, doListing: true, recursive: true }), false);
+    // router.use(restnio.serve('./dope.html', true));
 
     router.get('/meep', () => {return{name: 'trudy', age: 5}});
 
