@@ -1,6 +1,6 @@
 {
   "name": "restnio",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Node implementation of RestNio, the easy peasy API system.",
   "main": "index.js",
   "scripts": {
