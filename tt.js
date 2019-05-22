@@ -1,12 +1,11 @@
 const restnio = require('./');
-// new restnio((router) => {
-//     router.get('/', (params, client) => client.request.headers);
-// }, {}).bind();
 
 new restnio((router, rnio) => {
-    router.use('/test', (dmoet) => {
-        dmoet.htt
-    }, true);
+    
+    router.get('/', () => {
+        return 'HIII :D';
+    });
+
 }, {
     port: 7070,
     websocket: {
@@ -14,13 +13,12 @@ new restnio((router, rnio) => {
 
         }
     }
-})
+}).bind();
+
 
 /**
- * @type import("./lib/routes/Router").RouteBack
+ * @type import("./").Router
  */
 let routefunc = (router, restnio) => {
     
 };
-
-//new restnio(, {port: 7070});
