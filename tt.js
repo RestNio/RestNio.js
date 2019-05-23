@@ -1,7 +1,7 @@
 const restnio = require('./');
 
 new restnio((router, rnio) => {
-    
+    rnio.$p
     router.get('/', () => {
         return 'HIII :D';
     });
