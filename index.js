@@ -15,6 +15,7 @@ module.exports = require('./lib/RestNio');
  * @typedef {import("./lib/routes/Route").RouteDef} RouteDef
  * @typedef {import("./lib/routes/Route").ParamDef} ParamDef
  * @typedef {import("./lib/client/Client")} Client
+ * @typedef {import("./lib/authentication/Token")} Token
  * @typedef {import("./lib/params/").Params} Params
  * @typedef {import("./lib/params/formatters").Formatters} Formatters
  * @typedef {import("./lib/params/formatters/Num").NumFormat} NumFormat
@@ -22,6 +23,8 @@ module.exports = require('./lib/RestNio');
  * @typedef {import("./lib/params/checks").Checks} Checks
  * @typedef {import("./lib/params/checks/Num").NumCheck} NumCheck
  * @typedef {import("./lib/params/checks/Str").StrCheck} StrCheck
+ * @typedef {import("./lib/util/RouteMap")} RouteMap
+ * @typedef {import("./lib/util/PermissionSet")} PermissionSet
  * @typedef {import("./lib/util/Options").Options} Options
  * @typedef {import("./lib/util/Options").AuthOptions} AuthOptions
  * @typedef {import("./lib/util/Options").AuthSignOptions} AuthSignOptions
