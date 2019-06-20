@@ -9,6 +9,7 @@ module.exports = require('./lib/RestNio');
 
 /**
  * Re-expose typedefs for silly IDE's.
+ * @typedef {import("./lib/RestNio")} RestNio
  * @typedef {import("./lib/routes/Router").RouteBack} RouteBack
  * @typedef {import("./lib/routes/Route")} Route
  * @typedef {import("./lib/routes/Route").RouteFunc} RouteFunc
