@@ -38,5 +38,6 @@ module.exports = require('./lib/RestNio');
  * @typedef {import("./lib/plugins/cors").Cors} Cors
  * @typedef {import("./lib/plugins/cors").CorsOptions} CorsOptions
  * @typedef {import("./lib/plugins/serve").Serve} Serve
+ * @typedef {import("./lib/plugins/serve").ServeListing} ServeListing
  * @typedef {import("./lib/plugins/serve").ServeOptions} ServeOptions
  */
