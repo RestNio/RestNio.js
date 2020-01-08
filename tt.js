@@ -5,6 +5,8 @@ new restnio((router, rnio) => {
         return 'HIII :D';
     });
 
+    router.use('/baa', rnio.serve('./LICENSE', {noFilename: true, cache: false}));
+
     router.get('/cookie', (params, client) => {
         
     });
