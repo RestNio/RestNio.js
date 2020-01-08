@@ -14,11 +14,9 @@ new restnio((router, rnio) => {
     });
 
 }, {
-    port: 7070,
+    port: 80,
     websocket: {
-        motd: (params, client) => {
-            
-        }
+        motd: (params, client) => 'Dope'
     },
     default: {
         httpProperties: {
