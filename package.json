@@ -26,16 +26,16 @@
   "homepage": "https://github.com/RestNio/RestNio.js#readme",
   "dependencies": {
     "jsonwebtoken": "^8.5.1",
-    "lodash": "^4.17.11",
-    "mime-types": "^2.1.23",
-    "ms": "^2.1.1",
-    "qs": "^6.7.0",
-    "query-string": "^6.4.2",
-    "uuid": "^3.3.2",
+    "lodash": "^4.17.19",
+    "mime-types": "^2.1.27",
+    "ms": "^2.1.2",
+    "qs": "^6.9.4",
+    "query-string": "^6.13.1",
+    "uuid": "^3.4.0",
     "ws": "^6.2.1"
   },
   "devDependencies": {
-    "mocha": "^5.2.0",
+    "mocha": "^8.0.1",
     "should": "^13.2.3"
   },
   "optionalDependencies": {
