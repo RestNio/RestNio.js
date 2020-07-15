@@ -1,11 +1,13 @@
 const restnio = require('./');
 
-new restnio((router, rnio) => {
+let main = new restnio((router, rnio) => {
     router.get('/', () => {
         return 'HIII :D';
     });
 
-    router.use('/baa', rnio.serve('./test/', {doListing: true, noFilename:true, cache: true}));
+    router.get('/ree/:dope', (params)=>params.dope);
+
+    router.use('/baa', rnio.serve('./test/', {doListing: true, noFilename:true, cache: false, recursive: true}));
 
     router.get('/cookie', (params, client) => {
         
@@ -26,8 +28,9 @@ new restnio((router, rnio) => {
             jsonError: false
         }
     }
-}).bind();
-
+});
+main.bind();
+console.dir(main.routes);
 
 /**
  * @type import("./").Router
