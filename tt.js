@@ -7,7 +7,7 @@ let main = new restnio((router, rnio) => {
 
     router.get('/ree/:dope', (params)=>params.dope);
 
-    router.use('/baa', rnio.serve('./test/', {doListing: true, noFilename:true, cache: false, recursive: true}));
+    router.use('/baa', rnio.serve('./test/', {doListing: true, noFilename:true, cache: false, recursive: true}), true);
 
     router.get('/cookie', (params, client) => {
         
@@ -18,7 +18,7 @@ let main = new restnio((router, rnio) => {
     });
 
 }, {
-    port: 80,
+    port: 7070,
     websocket: {
         motd: (params, client) => 'Dope'
     },
