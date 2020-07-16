@@ -2,4 +2,4 @@ root = yes
 
 [*]
 indent_size = 4
-indent_style = tab
+indent_style = space

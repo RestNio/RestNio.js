@@ -7,7 +7,8 @@ let main = new restnio((router, rnio) => {
 
     router.get('/ree/:dope', (params)=>params.dope);
 
-    router.use('/baa', rnio.serve(__dirname + '/test/dogSite/', {doListing: true, noFilename:true, cache: false, recursive: true}), true);
+	//router.redirect('/docs', '/docs/');
+    router.use('/docs', rnio.serve('./docs/', {cache:false, doListing: true, noFilename:true}), true);
 
     router.get('/cookie', (params, client) => {
         
