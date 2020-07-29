@@ -32,6 +32,9 @@ module.exports = require('./lib/RestNio');
  * @typedef {import("./lib/util/Options").AuthVerifyOptions} AuthVerifyOptions
  * @typedef {import("./lib/util/Options").ClientProperties} ClientProperties
  * @typedef {import("./lib/util/Options").CookieOptions} CookieOptions
+ * @typedef {import("./lib/util/Options").ProxyOptions} ProxyOptions
+ * @typedef {import("./lib/util/Options").getIpHeaderCallback} getIpHeaderCallback
+ * @typedef {import("./lib/util/Options").getIpNetworkCallback} getIpNetworkCallback
  * @typedef {import("./lib/util/Options").DefaultOptions} DefaultOptions
  * @typedef {import("./lib/util/Options").HttpOptions} HttpOptions
  * @typedef {import("./lib/util/Options").WebsocketOptions} WebsocketOptions
@@ -40,4 +43,6 @@ module.exports = require('./lib/RestNio');
  * @typedef {import("./lib/plugins/serve").Serve} Serve
  * @typedef {import("./lib/plugins/serve").ServeListing} ServeListing
  * @typedef {import("./lib/plugins/serve").ServeOptions} ServeOptions
+ * @typedef {import("./lib/plugins/ratelimit").RateLimit} RateLimit
+ * @typedef {import("./lib/plugins/ratelimit").RateLimitOptions} RateLimitOptions
  */

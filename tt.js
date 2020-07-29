@@ -1,11 +1,21 @@
 const restnio = require('./');
+const params = require('./lib/params');
 
 let main = new restnio((router, rnio) => {
     router.get('/', () => {
         return 'HIII :D';
     });
 
+    router.use('/ree/:dope/', rnio.ratelimit({
+        per: 'params', perParams: ['dope', 'dape']
+    }));
     router.get('/ree/:dope', (params)=>params.dope);
+    router.get('/ree/:dope/dape', (params)=>params.dope + params.dape);
+
+    router.use('/whatismyip', rnio.ratelimit({
+
+    }));
+    router.get('/whatismyip', (params, client) => client.ip);
 
 	//router.redirect('/docs', '/docs/');
     router.use('/docs', rnio.serve('./docs/', {cache:false, doListing: true, noFilename:true}), true);
