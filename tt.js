@@ -13,7 +13,10 @@ let main = new restnio((router, rnio) => {
     // router.get('/ree/:dope/dape', (params)=>params.dope + params.dape);
 
     // router.get('/drep', () => 'ddd');
+    router.use('/drep**', rnio.ratelimit({scope: "soft"}));
     router.get('/drep**', () => 'eee');
+
+    router.get(':[i]/m..p', () => 'NICE :D');
     // router.get('/drep/*/test', () => '111');
 
     // router.use('/whatismyip', rnio.ratelimit({
