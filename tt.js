@@ -3,7 +3,19 @@ const params = require('./lib/params');
 
 let main = new restnio((router, rnio) => {
     router.get('/', () => {
+        rnio.subs('test').str('hello');
         return 'HIII :D';
+    });
+    router.get('/whois', () => {
+        //rnio.subs('test').add('test');
+        console.dir(rnio.subs('test'));
+        // rnio.subs('test').forEach(client => client.str('hi'));
+        return Array.from(rnio.subs('test')).map(client => client.ip);
+    });
+
+    router.ws('/sub', (params, client) => {
+        client.subscribe('test');
+        return "subbed";
     });
 
     // router.use('/ree/:dope/', rnio.ratelimit({
@@ -13,10 +25,10 @@ let main = new restnio((router, rnio) => {
     // router.get('/ree/:dope/dape', (params)=>params.dope + params.dape);
 
     // router.get('/drep', () => 'ddd');
-    router.use('/drep**', rnio.ratelimit({scope: "soft"}));
-    router.get('/drep**', () => 'eee');
+    // router.use('/drep**', rnio.ratelimit({scope: "soft"}));
+    // router.get('/drep**', () => 'eee');
 
-    router.get(':[i]/m..p', () => 'NICE :D');
+    // router.get(':[i]/m..p', () => 'NICE :D');
     // router.get('/drep/*/test', () => '111');
 
     // router.use('/whatismyip', rnio.ratelimit({
