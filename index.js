@@ -24,8 +24,10 @@ module.exports = require('./lib/RestNio');
  * @typedef {import("./lib/params/checks").Checks} Checks
  * @typedef {import("./lib/params/checks/Num").NumCheck} NumCheck
  * @typedef {import("./lib/params/checks/Str").StrCheck} StrCheck
- * @typedef {import("./lib/util/RouteMap")} RouteMap
  * @typedef {import("./lib/util/PermissionSet")} PermissionSet
+ * @typedef {import("./lib/util/RouteMap")} RouteMap
+ * @typedef {import("./lib/util/ClientSet")} ClientSet
+ * @typedef {import("./lib/util/SubscriptionMap")} SubscriptionMap
  * @typedef {import("./lib/util/Options").Options} Options
  * @typedef {import("./lib/util/Options").AuthOptions} AuthOptions
  * @typedef {import("./lib/util/Options").AuthSignOptions} AuthSignOptions
@@ -38,6 +40,11 @@ module.exports = require('./lib/RestNio');
  * @typedef {import("./lib/util/Options").DefaultOptions} DefaultOptions
  * @typedef {import("./lib/util/Options").HttpOptions} HttpOptions
  * @typedef {import("./lib/util/Options").WebsocketOptions} WebsocketOptions
+ * @typedef {import("./lib/connector/httpConnector").httpCallback} httpCallback
+ * @typedef {import("./lib/connector/httpConnector").httpClientRequest} httpClientRequest
+ * @typedef {import("./lib/connector/httpConnector")} httpConnector
+ * @typedef {import("./lib/connector/wsConnector").wsCallback} wsCallback
+ * @typedef {import("./lib/connector/wsConnector")} wsConnector
  * @typedef {import("./lib/plugins/cors").Cors} Cors
  * @typedef {import("./lib/plugins/cors").CorsOptions} CorsOptions
  * @typedef {import("./lib/plugins/serve").Serve} Serve
