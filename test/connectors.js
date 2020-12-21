@@ -7,26 +7,26 @@ const RestNio = require('../');
 //     console.log(body);
 // });
 
-let http = new RestNio.http('http://127.0.0.1:7070');
-http.get({
-    path: '/test',
-    params: {
-        age: 'test'
-    }
-}, (res => console.log(res)));
+// let http = new RestNio.http('http://127.0.0.1:7070');
+// http.get({
+//     path: '/test',
+//     params: {
+//         age: 'test'
+//     }
+// }, (res => console.log(res)));
 
-// RestNio.http('GET', 'http://mu1.nl/', (body) => console.log(body));
+// RestNio.request('GET', 'http://mu1.nl/', (body) => console.log(body));
 
-// let ws = RestNio.websocket('ws://localhost:7070/', (data) => console.log(data), (data, client) => {
-//     console.log('connected');
-//     client.obj({
-//         path: '/join',
-//         params: {
-//             room: 'test1',
-//             name: 'nodejs'
-//         }
-//     });
-// }, ()=>{console.log('CLOSED CLIENT')});
+let ws = RestNio.websocket('ws://localhost:7070/', (data) => console.log(data), (data, client) => {
+    console.log('connected');
+    client.obj({
+        path: '/join',
+        params: {
+            room: 'test1',
+            name: 'nodejs'
+        }
+    });
+}, ()=>{console.log('CLOSED CLIENT')});
 
 // rl.prompt();
 // rl.on("line", (msg) => {
