@@ -18,6 +18,12 @@ let main = new restnio((router, rnio) => {
         return "subbed";
     });
 
+    router.ws('/close', (params, client) => client.close([1000, 'bye']));
+
+    router.on('wsClose', (params) => {
+        console.log('test: ' + JSON.stringify(params.reason));
+    });
+
     // router.use('/ree/:dope/', rnio.ratelimit({
     //     per: 'params', perParams: ['dope', 'dape']
     // }));
@@ -48,7 +54,7 @@ let main = new restnio((router, rnio) => {
     // });
 
 }, {
-    port: 7070,
+    port: 7071,
     websocket: {
         motd: (params, client) => 'Dope'
     },
