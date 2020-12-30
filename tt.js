@@ -13,6 +13,13 @@ let main = new restnio((router, rnio) => {
         return Array.from(rnio.subs('test')).map(client => client.ip);
     });
 
+    router.get('/strtest', {
+        params: {
+            "str": rnio.params.regexString('[a-z]*')
+        },
+        func: (params) => params
+    });
+
     router.ws('/sub', (params, client) => {
         client.subscribe('test');
         return "subbed";
