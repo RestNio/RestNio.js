@@ -33,7 +33,7 @@
     "qs": "^6.9.4",
     "query-string": "^6.13.1",
     "uuid": "^3.4.0",
-    "ws": "^6.2.1"
+    "ws": "^7.4.6"
   },
   "devDependencies": {
     "mocha": "^8.2.1",
