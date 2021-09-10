@@ -100,4 +100,3 @@ dogSite.bind();
 ### WIP
 Although this project is almost ready for release, there is still work in progress.
 Some functionality might change and documentation / tutorials are still missing.
-Expect tutorials and missing documentation within a month or so.
