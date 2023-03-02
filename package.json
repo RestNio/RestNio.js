@@ -25,7 +25,7 @@
   },
   "homepage": "https://github.com/RestNio/RestNio.js#readme",
   "dependencies": {
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "lodash": "^4.17.19",
     "mime-types": "^2.1.27",
     "ms": "^2.1.2",
@@ -36,7 +36,7 @@
     "ws": "^6.2.2"
   },
   "devDependencies": {
-    "mocha": "^8.2.1",
+    "mocha": "^10.2.0",
     "should": "^13.2.3"
   },
   "optionalDependencies": {
