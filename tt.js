@@ -62,9 +62,6 @@ let main = new restnio((router, rnio) => {
 
 }, {
     port: 7071,
-    websocket: {
-        motd: (params, client) => 'Dope'
-    },
     default: {
         httpProperties: {
             jsonResponse: false,
