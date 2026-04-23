@@ -1,0 +1,67 @@
+name: Wiki Sync
+
+on:
+  push:
+    branches: [master, main]
+    paths: ["docs/**"]
+  gollum:
+  workflow_dispatch:
+
+env:
+  GIT_AUTHOR_NAME: GitHub Actions
+  GIT_AUTHOR_EMAIL: actions@github.com
+
+jobs:
+  sync-docs-to-wiki:
+    if: github.event_name != 'gollum'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Push docs/ to wiki
+        run: |
+          git clone https://x-access-token:${{ secrets.WIKI_SYNC_SECRET }}@github.com/RestNio/RestNio.js.wiki.git _wiki
+          cp -r docs/. _wiki/
+          cd _wiki
+          git config user.name "${{ env.GIT_AUTHOR_NAME }}"
+          git config user.email "${{ env.GIT_AUTHOR_EMAIL }}"
+          git add -A
+          git diff-index --quiet HEAD || git commit -m "docs: sync wiki from main repo [skip ci]"
+          git push
+
+  sync-wiki-to-docs:
+    if: github.event_name == 'gollum'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.WIKI_SYNC_SECRET }}
+      - name: Check Home.md exists (prevents first-run data loss)
+        shell: bash
+        run: |
+          if [ ! -f docs/Home.md ]; then
+            echo "::error::Run sync-docs-to-wiki manually first, then this job will work."
+            exit 1
+          fi
+      - name: Create sync branch
+        run: git checkout -b wiki-sync-${{ github.run_number }}
+      - name: Pull wiki into docs/
+        run: |
+          git clone https://x-access-token:${{ secrets.WIKI_SYNC_SECRET }}@github.com/RestNio/RestNio.js.wiki.git _wiki
+          cp -r _wiki/. docs/
+          rm -rf _wiki
+      - name: Commit and push
+        run: |
+          git config user.name "${{ env.GIT_AUTHOR_NAME }}"
+          git config user.email "${{ env.GIT_AUTHOR_EMAIL }}"
+          git add docs/
+          git diff-index --quiet HEAD || git commit -m "docs: sync wiki edits back to repo [skip ci]"
+          git push -u origin wiki-sync-${{ github.run_number }}
+      - name: Open pull request
+        run: |
+          gh pr create \
+            --title "Wiki sync: edits from GitHub Wiki UI" \
+            --body "Automated PR — wiki edits synced back to docs/ via the gollum event." \
+            --label "docs" \
+            --base ${{ github.event.repository.default_branch }}
+        env:
+          GH_TOKEN: ${{ secrets.WIKI_SYNC_SECRET }}
