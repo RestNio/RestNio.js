@@ -62,3 +62,7 @@ typings/
 
 # Claude output
 .claude
+
+# Auto-generated TypeScript declarations (rebuilt via `npm run build:types`).
+# The hand-authored types/index.d.ts and types/inference.d.ts ARE source-controlled.
+types/_generated/

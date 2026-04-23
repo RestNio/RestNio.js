@@ -43,6 +43,12 @@ jobs:
       - name: End-to-end tests
         run: npm run test:e2e
 
+      - name: Build TypeScript declarations from JSDoc
+        run: npm run build:types
+
+      - name: Type-check sample TS consumers
+        run: npm run test:types
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest

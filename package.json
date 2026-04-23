@@ -10,8 +10,19 @@
     "test:e2e": "mocha \"test/e2e/**/*.js\"",
     "test:watch": "mocha \"test/**/*.js\" --watch",
     "test:coverage": "c8 mocha \"test/**/*.js\"",
+    "test:types": "tsc -p tsconfig.types-test.json --noEmit",
+    "build:types": "tsc",
+    "prepack": "npm run build:types",
     "start": "node index.js"
   },
+  "types": "./types/index.d.ts",
+  "files": [
+    "index.js",
+    "lib/",
+    "types/",
+    "LICENSE",
+    "README.md"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/RestNio/RestNio.js.git"
@@ -40,14 +51,28 @@
     "ws": "^8.20.0"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/ws": "^8.18.1",
     "c8": "^10.1.3",
     "mocha": "^11.7.5",
-    "should": "^13.2.3"
+    "should": "^13.2.3",
+    "typescript": "^5.9.3"
   },
   "c8": {
-    "reporter": ["text", "html", "lcov"],
-    "include": ["lib/**/*.js", "index.js"],
-    "exclude": ["test/**", "examples/**", "**/node_modules/**"],
+    "reporter": [
+      "text",
+      "html",
+      "lcov"
+    ],
+    "include": [
+      "lib/**/*.js",
+      "index.js"
+    ],
+    "exclude": [
+      "test/**",
+      "examples/**",
+      "**/node_modules/**"
+    ],
     "check-coverage": true,
     "lines": 80,
     "statements": 80,
@@ -55,9 +80,9 @@
     "functions": 80
   },
   "optionalDependencies": {
+    "@msgpack/msgpack": "^3.1.2",
     "bufferutil": "^4.0.9",
-    "utf-8-validate": "^6.0.6",
-    "@msgpack/msgpack": "^3.1.2"
+    "utf-8-validate": "^6.0.6"
   },
   "overrides": {
     "diff": "^8.0.3",
