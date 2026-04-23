@@ -52,4 +52,5 @@ module.exports = require('./lib/RestNio');
  * @typedef {import("./lib/plugins/serve").ServeOptions} ServeOptions
  * @typedef {import("./lib/plugins/ratelimit").RateLimit} RateLimit
  * @typedef {import("./lib/plugins/ratelimit").RateLimitOptions} RateLimitOptions
+ * @typedef {import("./lib/codec").Codec} Codec
  */
