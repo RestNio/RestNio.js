@@ -7,17 +7,11 @@
  *    HttpClient, WebSocketClient, options typedefs, plugins, codecs, ...).
  *  - This file — hand-authored. Re-shapes the `Router` class so its method
  *    signatures use the inference layer (path-param + schema → handler `params`)
- *    instead of the loose JSDoc-derived ones.
- *
- * Because TypeScript appends augmented overloads after the existing ones (and
- * picks the first matching overload), we cannot simply `declare module …
- * { interface Router { … } }` and expect the smart signatures to win. Instead
- * we re-declare `Router` with smart-only signatures here, and re-export the
- * RestNio constructor from the generated module with our smart `Router` swapped
- * into the `RouteBack` callback type.
+ *    instead of the loose JSDoc-derived ones. Also brands the built-in
+ *    `rnio.params.*` helpers with the TS types they parse to.
  *
  * Inference helpers (PathParams, InferSchema, TypedAs, …) live in
- * `./inference.d.ts`; they are re-exported by name below.
+ * `./inference.d.ts`; they are re-exported as `RestNio.PathParams` etc.
  */
 
 /// <reference path="./inference.d.ts" />
@@ -25,25 +19,94 @@
 import type {
     ParamSchema,
     SmartRouteFunc,
-    SmartRouteDef
+    SmartRouteDef,
+    TypedAs,
+    InferableParamDef,
+    HandlerParams
 } from './inference';
 
 // ---------------------------------------------------------------------------
-// Pull commonly-used shapes from the generated tree.
+// Shapes pulled from the generated tree (classes, option typedefs, plugins).
 // ---------------------------------------------------------------------------
-type Options         = import('./_generated/lib/util/Options').Options;
-type Client          = import('./_generated/lib/client/Client');
-type Params          = import('./_generated/lib/params/').Params;
-type RouteDef        = import('./_generated/lib/routes/Route').RouteDef;
-type RouteFunc       = import('./_generated/lib/routes/Route').RouteFunc;
-type ParamDef        = import('./_generated/lib/routes/Route').ParamDef;
+type Options          = import('./_generated/lib/util/Options').Options;
+type Client           = import('./_generated/lib/client/Client');
+type HttpClient       = import('./_generated/lib/client/HttpClient');
+type WebSocketClient  = import('./_generated/lib/client/WebSocketClient');
+type RouteDef         = import('./_generated/lib/routes/Route').RouteDef;
+type RouteFunc        = import('./_generated/lib/routes/Route').RouteFunc;
+type ParamDef         = import('./_generated/lib/routes/Route').ParamDef;
+type Formatters       = import('./_generated/lib/params/formatters').Formatters;
+type Checks           = import('./_generated/lib/params/checks').Checks;
 
 // ---------------------------------------------------------------------------
-// Smart Router — hand-authored class with inference-friendly signatures for
-// every routing method. Unhandled calls (non-literal path strings, complex
-// shapes) fall through to the catch-all overload at the bottom of each method.
+// Branded Params — the built-in helpers re-typed with TypedAs<T> phantoms so
+// schema entries using them infer the right TS type automatically (no more
+// `as const` needed on `type:` literals).
+// ---------------------------------------------------------------------------
+interface BrandedParams {
+    /** Formatter helpers (`$f`) — raw/untyped, see lib/params/formatters. */
+    $f: Formatters;
+    formatters: Formatters;
+    /** Check helpers (`$c`) — raw/untyped, see lib/params/checks. */
+    $c: Checks;
+    checks: Checks;
+
+    /** Required param of any type. Handler sees `unknown`. */
+    required:     InferableParamDef & TypedAs<unknown>  & { required: true };
+    /** Required param cast to string. */
+    string:       InferableParamDef & TypedAs<string>   & { required: true; type: 'string' };
+    /** Required param forced to string via String(). */
+    forcedString: InferableParamDef & TypedAs<string>   & { required: true };
+    /** Required param forced to string[] (supports CSV strings). */
+    forcedArr:    InferableParamDef & TypedAs<string[]> & { required: true };
+    /** Required param of type number. */
+    number:       InferableParamDef & TypedAs<number>   & { required: true; type: 'number' };
+    /** Required integer (number, with isInteger check). */
+    integer:      InferableParamDef & TypedAs<number>   & { required: true; type: 'number' };
+    /** Required boolean. */
+    boolean:      InferableParamDef & TypedAs<boolean>  & { required: true; type: 'boolean' };
+    /** Required email-formatted string. */
+    email:        InferableParamDef & TypedAs<string>   & { required: true; type: 'string' };
+    /** Required MAC-address-formatted string. */
+    mac:          InferableParamDef & TypedAs<string>   & { required: true; type: 'string' };
+    /** Required date (parsed from string or ms-since-epoch into a `Date`). */
+    date:         InferableParamDef & TypedAs<Date>     & { required: true };
+    /** Required UUID-formatted string. */
+    uuid:         InferableParamDef & TypedAs<string>   & { required: true; type: 'string' };
+    /** Required relative time in ms (`555` or `'1s'` → number). */
+    relativeTime: InferableParamDef & TypedAs<number>   & { required: true };
+    /** Optional relative date — defaults to `new Date()`. */
+    relativeDate: InferableParamDef & TypedAs<Date>     & { required: false };
+    /** Required time string (`hh:mm(:ss)`) parsed into a `Date`. */
+    time:         InferableParamDef & TypedAs<Date>     & { required: true; type: 'string' };
+
+    /**
+     * Constrains a string param to one of the supplied options.
+     * Handler type is the union of the options.
+     *
+     *     params: { color: rnio.params.enum('red', 'green', 'blue') }
+     *     // → params.color is `'red' | 'green' | 'blue'`
+     */
+    enum<const O extends readonly string[]>(
+        ...options: O
+    ): InferableParamDef & TypedAs<O[number]> & { required: true };
+
+    /**
+     * Constrains a string param by a regex pattern.
+     *
+     *     params: { slug: rnio.params.regexString(/^[a-z-]+$/) }
+     */
+    regexString(
+        regex: RegExp | string,
+        valuetype?: string
+    ): InferableParamDef & TypedAs<string> & { required: true; type: 'string' };
+}
+
+// ---------------------------------------------------------------------------
+// Handler shapes — tuned per transport so `client` is the right subclass.
 // ---------------------------------------------------------------------------
 
+/** Bimodal HTTP+WS handler: `client` is the common base type. */
 interface SmartMethod {
     <P extends string, S extends ParamSchema = {}>(
         path: P,
@@ -53,17 +116,62 @@ interface SmartMethod {
     (path: string, routedef: RouteFunc | RouteDef, params?: Record<string, ParamDef>, permissions?: string[], isActive?: boolean): void;
 }
 
-interface SmartWsBin {
-    /** Named binary route. */
-    <S extends ParamSchema = {}>(
-        name: string,
-        routedef: SmartRouteFunc<'', S> | SmartRouteDef<'', S>
+/** HTTP-only handler — `client` narrows to {@link HttpClient}. */
+interface SmartHttpMethod {
+    <P extends string, S extends ParamSchema = {}>(
+        path: P,
+        routedef:
+            | ((params: HandlerParams<P, S>, client: HttpClient) => unknown)
+            | {
+                func: (params: HandlerParams<P, S>, client: HttpClient) => unknown;
+                params?: S;
+                permissions?: readonly string[];
+                isActive?: boolean;
+            }
     ): void;
-    /** Default (unnamed) binary route. */
-    <S extends ParamSchema = {}>(
-        routedef: SmartRouteFunc<'', S> | SmartRouteDef<'', S>
-    ): void;
+    (path: string, routedef: RouteFunc | RouteDef, params?: Record<string, ParamDef>, permissions?: string[], isActive?: boolean): void;
 }
+
+/** WS-only handler — `client` narrows to {@link WebSocketClient}. */
+interface SmartWsMethod {
+    <P extends string, S extends ParamSchema = {}>(
+        path: P,
+        routedef:
+            | ((params: HandlerParams<P, S>, client: WebSocketClient) => unknown)
+            | {
+                func: (params: HandlerParams<P, S>, client: WebSocketClient) => unknown;
+                params?: S;
+                permissions?: readonly string[];
+                isActive?: boolean;
+            }
+    ): void;
+    (path: string, routedef: RouteFunc | RouteDef, params?: Record<string, ParamDef>, permissions?: string[], isActive?: boolean): void;
+}
+
+/** Params a `wsBin` handler sees: raw frame payload + its byte length. */
+interface WsBinParams {
+    /** The raw binary frame payload as a Buffer. */
+    data: Buffer;
+    /** Byte length of `data`. */
+    size: number;
+}
+
+type WsBinRouteFunc = (params: WsBinParams, client: WebSocketClient) => unknown;
+interface WsBinRouteDef {
+    func: WsBinRouteFunc;
+    permissions?: readonly string[];
+    isActive?: boolean;
+}
+
+/** `router.wsBin` — two forms: named (`'file'`) and default-unnamed. */
+interface SmartWsBin {
+    (name: string, routedef: WsBinRouteFunc | WsBinRouteDef): void;
+    (routedef: WsBinRouteFunc | WsBinRouteDef): void;
+}
+
+// ---------------------------------------------------------------------------
+// Smart Router — hand-authored so smart signatures win over the loose ones.
+// ---------------------------------------------------------------------------
 
 declare class Router {
     constructor(rnio: RestNio, path?: string);
@@ -71,7 +179,7 @@ declare class Router {
     rnio: RestNio;
     path: string;
 
-    // Bimodal HTTP + WS helpers ------------------------------------------------
+    // Bimodal (HTTP + WS) -----------------------------------------------------
     get:     SmartMethod;
     post:    SmartMethod;
     put:     SmartMethod;
@@ -82,27 +190,27 @@ declare class Router {
     trace:   SmartMethod;
     all:     SmartMethod;
 
-    // HTTP-only ----------------------------------------------------------------
-    httpGet:     SmartMethod;
-    httpPost:    SmartMethod;
-    httpPut:     SmartMethod;
-    httpPatch:   SmartMethod;
-    httpDelete:  SmartMethod;
-    httpHead:    SmartMethod;
-    httpOptions: SmartMethod;
-    httpTrace:   SmartMethod;
-    httpAll:     SmartMethod;
+    // HTTP-only ---------------------------------------------------------------
+    httpGet:     SmartHttpMethod;
+    httpPost:    SmartHttpMethod;
+    httpPut:     SmartHttpMethod;
+    httpPatch:   SmartHttpMethod;
+    httpDelete:  SmartHttpMethod;
+    httpHead:    SmartHttpMethod;
+    httpOptions: SmartHttpMethod;
+    httpTrace:   SmartHttpMethod;
+    httpAll:     SmartHttpMethod;
     httpDef(method: string, path: string, routedef: RouteDef | RouteFunc, params?: Record<string, ParamDef>, permissions?: string[], isActive?: boolean): void;
     httpRedirect(path: string, location: string, code?: number, absolute?: boolean, methods?: string[]): void;
     httpPrefix(methods: string): string;
 
-    // WS only ------------------------------------------------------------------
-    ws:    SmartMethod;
+    // WS-only -----------------------------------------------------------------
+    ws:    SmartWsMethod;
     wsBin: SmartWsBin;
     wsRedirect(path: string, location: string, code?: number, absolute?: boolean): void;
     wsPrefix(): string;
 
-    // Special ------------------------------------------------------------------
+    // Special -----------------------------------------------------------------
     redirect(path: string, location: string, code?: number, absolute?: boolean, methods?: string[]): void;
     use(path: string, router: RouteBack, redirect?: boolean): void;
     use(router: RouteBack, redirect?: boolean): void;
@@ -117,26 +225,36 @@ declare namespace Router {
     const httpRegex: RegExp;
 }
 
-/** RouteBack — main router callback. Note: uses our smart Router. */
+/** Main router callback. Uses our smart Router, not the loose generated one. */
 type RouteBack = (router: Router, rnio: RestNio) => unknown;
 
 // ---------------------------------------------------------------------------
 // RestNio class — re-declared so the constructor's `routeFn` arg is typed
-// with our smart Router, not the loose generated one.
+// with our smart Router, and `params` is the branded helpers.
 // ---------------------------------------------------------------------------
 
 declare class RestNio {
     constructor(routeFn: RouteBack, options?: Options);
 
     version: string;
-    /** Built-in param helpers (string, integer, email, regexString, …). */
-    params: Params;
-    $p: Params;
+    /**
+     * Built-in param helpers (`rnio.params.string`, `.integer`, `.email`,
+     * `.enum('a','b')`, `.regexString(/…/)`, etc.). Each one is branded with
+     * the TS type it ultimately resolves to, so schemas using them infer
+     * handler `params` automatically without `as const`.
+     */
+    params: BrandedParams;
+    $p: BrandedParams;
     options: Options;
     router: Router;
     routes: import('./_generated/lib/util/RouteMap');
     subscriptions: import('./_generated/lib/util/SubscriptionMap');
-    token?: import('./_generated/lib/authentication/Token');
+    /**
+     * JWT token manager. Present whenever `options.auth.enabled` is `true` and
+     * `options.auth.type === 'jwt'` (which is the default). Calling any
+     * method on it while auth is disabled crashes at runtime.
+     */
+    token: import('./_generated/lib/authentication/Token');
     httpServer: import('http').Server;
     wsServer?: import('ws').Server;
 
@@ -147,19 +265,17 @@ declare class RestNio {
     request:   (typeof import('./_generated/lib/connector/httpConnector'))['singleHttp'];
     websocket: typeof import('./_generated/lib/connector/wsConnector');
 
-    /**
-     * Gets the clientset belonging to a certain subscription set name.
-     */
+    /** Gets the `ClientSet` belonging to a subscription name. */
     subs(name: string): import('./_generated/lib/util/ClientSet');
 
-    /** Starts the server and binds to a port. */
+    /** Starts the server and binds to a port (defaults to `options.port`). */
     bind(port?: number): void;
 }
 
 declare namespace RestNio {
     // Static accessors mirror the runtime exposure in lib/RestNio.js.
-    const params:    Params;
-    const $p:        Params;
+    const params:    BrandedParams;
+    const $p:        BrandedParams;
     const http:      typeof import('./_generated/lib/connector/httpConnector');
     const request:   (typeof import('./_generated/lib/connector/httpConnector'))['singleHttp'];
     const websocket: typeof import('./_generated/lib/connector/wsConnector');
@@ -177,17 +293,25 @@ declare namespace RestNio {
     type TypedAs<T>                      = import('./inference').TypedAs<T>;
     type ParamSchema                     = import('./inference').ParamSchema;
     type InferableParamDef               = import('./inference').InferableParamDef;
+    type WsBinParams                     = import('./index').WsBinParams;
 
     // Common runtime classes / typedefs from the generated tree.
     export {
         Router,
         Client,
+        HttpClient,
+        WebSocketClient,
         Options,
         ParamDef,
         RouteDef,
         RouteFunc,
-        RouteBack
+        RouteBack,
+        BrandedParams as Params
     };
 }
 
 export = RestNio;
+
+// Export WsBinParams at module scope so the `namespace` re-export above
+// (`import('./index').WsBinParams`) resolves.
+export type { WsBinParams };

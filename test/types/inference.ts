@@ -81,3 +81,46 @@ new RestNio((router) => {
     });
 
 }, { port: 0, auth: { enabled: false } });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Branded param helpers — no `as const` required. These should infer the
+// handler params as precise TS types directly.
+// ─────────────────────────────────────────────────────────────────────────
+new RestNio((router, rnio) => {
+
+    router.post('/make', {
+        params: {
+            name:  rnio.params.string,
+            age:   rnio.params.integer,
+            email: rnio.params.email,
+            color: rnio.params.enum('red', 'green', 'blue'),
+            slug:  rnio.params.regexString(/^[a-z-]+$/)
+        },
+        func: (params) => {
+            const n: string = params.name;
+            const a: number = params.age;
+            const e: string = params.email;
+            const c: 'red' | 'green' | 'blue' = params.color;
+            const s: string = params.slug;
+            // @ts-expect-error  age is number, not string.
+            const wrong: string = params.age;
+            return { n, a, e, c, s };
+        }
+    });
+
+    // WS handler — client is WebSocketClient (has setBinRoute etc.)
+    router.ws('/upload-start', (params, client) => {
+        client.setBinRoute('file');  // only on WebSocketClient
+        client.state.upload = Buffer.alloc(0);
+        return { ok: true };
+    });
+
+    // wsBin handler — params is { data: Buffer; size: number }
+    router.wsBin('file', (params, client) => {
+        const bytes: Buffer = params.data;
+        const n: number = params.size;
+        client.clearBinRoute();  // WebSocketClient method
+        return { bytes: n };
+    });
+
+}, { port: 0 });
