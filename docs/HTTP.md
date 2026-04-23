@@ -88,4 +88,4 @@ The built-in [Default Routes](Default-Routes) handle unmatched routes, permissio
 
 ---
 
-*[← Auth](Auth) | [WebSocket Basics →](WebSocket)*
+*[← Params & Validation](Params) | [Auth & Permissions →](Auth)*

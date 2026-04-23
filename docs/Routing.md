@@ -1,11 +1,13 @@
 # Core Routing Model
 
+RestNio builds on a single, unified routing model that handles both **HTTP** and **WebSocket** connections from the same route definitions. Instead of maintaining two separate server setups, you define a route once and it automatically works over both transports — a WebSocket client sends `{ "path": "/users", "params": { ... } }` and RestNio dispatches it through the exact same handler as an HTTP `POST /users`. This makes it effortless to share validation, permissions, and business logic across REST and real-time channels.
+
 ## Handler signature
 
 Every route handler receives `(params, client)`:
 
-- `params` — merged object of path params, query string, and request body
-- `client` — the current connection (HTTP or WebSocket)
+- `params` — merged object of path params, query string, and request body (HTTP) or the `params` field of the WS envelope
+- `client` — the current connection (HTTP or WebSocket); see [HTTP Behavior](HTTP) and [WebSocket Basics](WebSocket) for what's available
 - Return a **string** for plain text, an **object** for JSON, a **Buffer** for binary, or **`Infinity`** to take full manual control of the response
 
 ## Bimodal routes (HTTP + WebSocket)
@@ -53,17 +55,63 @@ WebSocket clients send a JSON envelope:
 
 ## Path parameters
 
-Both `:name` and `$name` syntaxes are supported:
+Both `:name` and `$name` syntaxes capture a single URL segment and make it available in `params`:
 
 ```js
 router.get('/dog/:name', (params) => `looking up ${params.name}`);
 router.get('/$breed/info', (params) => `breed: ${params.breed}`);
 ```
 
-Use `**` to match any subpath (wildcard):
+## Wildcards
+
+| Pattern | Matches | Does NOT match |
+|---------|---------|---------------|
+| `/files/**` | `/files/`, `/files/a`, `/files/a/b` | `/files` |
+| `/files/*` | `/files/`, `/files/a`, `/files/a/b` | `/files` |
+| `/files/*/info` | `/files/img/info`, `/files/doc/info` | `/files/info` |
+| `/api**` | `/api`, `/api/`, `/api/v1/users` | — |
+
+The `**` variant without a leading slash (`/api**`) is useful for mounting middleware that should match both the exact path and all sub-paths.
+
+## Advanced path patterns
+
+Because paths are compiled to regular expressions internally, regex metacharacters work directly in path strings. This lets you match complex URL shapes without writing a custom middleware.
+
+**Regex flags** — prefix a route string with `:[flags]/` to set regex flags for the entire path. The most useful is `i` for case-insensitive matching:
 
 ```js
-router.get('/files/**', (params, client) => { /* serve anything under /files/ */ });
+// Matches /Dogs, /DOGS, /dogs, /doGs, etc.
+router.get(':[i]/dogs', () => ({ dogs: [] }));
+
+// Case-insensitive param
+router.get(':[i]/dog/:name', (params) => `found ${params.name}`);
+```
+
+**Inline regex** — any character position that is not a `:variable` or `*` is treated as a raw regex fragment. Use standard regex syntax for character classes, quantifiers, and groups:
+
+```js
+// Match any 3-digit numeric resource ID in the URL
+router.get('/item/\\d{3}', (params, client) => {
+  return client.url; // e.g. /item/042
+});
+
+// Dot matches any character — useful for format-agnostic routes
+router.get('/report.+', () => 'report handler');
+
+// Character class — only /cat or /bat
+router.get('/[cb]at', () => 'meow or flap');
+```
+
+> **Note**: Because the path is anchored at both ends (`^...$`), regex metacharacters only need escaping if they are meant literally (e.g. use `\\.` for a literal dot, or just accept that `.` matches any character).
+
+**Raw RegExp via `defFull`** — for full control you can register a pre-built regular expression directly. The `fullpath` string must encode the method prefix the same way RestNio does internally, so this is an expert-only escape hatch:
+
+```js
+// Register a raw regex — matches GET /item/123 or /item/456
+router.defFull(
+  /^(?:GET|ws):\/item\/(?:123|456)$/,
+  new Route(() => 'matched!')
+);
 ```
 
 ## Nested routers

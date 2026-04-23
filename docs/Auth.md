@@ -1,6 +1,30 @@
 # Auth and Permissions (JWT)
 
-Auth is **enabled by default** with a random secret. Configure it explicitly in production:
+Authentication and fine-grained permissions are baked into RestNio from day one — not bolted on as an afterthought. The built-in JWT auth system gives you a complete identity layer that works identically over HTTP and WebSocket with almost no configuration.
+
+## Why use it?
+
+- **Zero boilerplate** — auth is enabled by default with a random secret; just call `rnio.token.grant()` to start issuing tokens
+- **Unified transport** — the same token works for HTTP header auth, WebSocket envelopes, and browser cookie auth automatically
+- **Declarative permissions** — attach a `permissions` array to any route; RestNio checks it before your handler runs
+- **Template variables in permissions** — permission strings can reference URL path params (`:name`) so a single permission like `dogs.feed.:name` scopes exactly to the resource being accessed
+
+## A typical authentication flow
+
+```
+Browser / Client
+    │
+    ├── POST /login  →  server validates credentials, returns rnio.token.grant(['...'])
+    │                   ↳ token is a signed JWT string
+    │
+    ├── GET /me  (Authorization: token <jwt>)  →  server verifies, calls handler
+    │
+    └── ws connect → { path: '/data', token: '<jwt>', params: {} }
+```
+
+For **browser apps** with cookie-based auth: issue the token and write it into a `token` cookie once on login. Every subsequent request — HTTP *and* the WebSocket upgrade — will automatically carry the token without any client-side code change.
+
+## Basic example
 
 ```js
 const app = new RestNio((router, rnio) => {
@@ -41,16 +65,77 @@ const app = new RestNio((router, rnio) => {
 
 ## Sending a token
 
-HTTP clients include it in the `token` request header:
+**HTTP header** (REST clients, curl, mobile apps):
 
 ```bash
 curl -H "token: <jwt>" http://localhost:7070/dogs
 ```
 
-WebSocket clients include it directly in each message envelope:
+**WebSocket envelope** (WS clients include it in each message):
 
 ```json
 { "path": "/dogs", "token": "<jwt>", "params": {} }
+```
+
+**HTTP cookie** (browsers — no JS needed after login):
+
+When `cookietoken: true` (the default), RestNio automatically reads a cookie named `token` on every HTTP request. This makes browser session management trivial:
+
+```js
+// On login: set the cookie
+router.post('/login', async (params, client) => {
+  // ... validate credentials ...
+  const jwt = await rnio.token.grant(['user.read', 'user.write']);
+  client.cookie('token', jwt, { httpOnly: true, sameSite: 'Strict', maxAge: '1h' });
+  return { ok: true };
+});
+
+// Protected route — no extra code needed; cookie is verified automatically
+router.get('/me', {
+  permissions: ['user.read'],
+  func: (params, client) => ({ loggedIn: true })
+});
+
+// On logout: clear the cookie
+router.post('/logout', (params, client) => {
+  client.clearCookie('token');
+  return { ok: true };
+});
+```
+
+> **Security note**: Use `httpOnly: true` so the cookie is inaccessible to JavaScript. Consider `secure: true` in production (HTTPS only) and `sameSite: 'Strict'` to reduce CSRF risk.
+
+## Permission system in depth
+
+Permissions are free-form strings — you can model them however fits your domain. A token is granted an array of permission strings at issue time; a route declares the permissions needed to call it.
+
+**Multiple permissions on a route** — a client needs *all* of them:
+
+```js
+router.post('/admin/reset', {
+  permissions: ['admin', 'users.write'],
+  func: () => ({ reset: true })
+});
+```
+
+**Hierarchical naming** — a common convention is `resource.action` or `resource.action.scope`. You can invent any scheme; RestNio just does exact-string matching (plus template substitution):
+
+```js
+// Fine-grained RBAC example
+const adminToken  = await rnio.token.grant(['admin', 'users.read', 'users.write', 'dogs.read', 'dogs.write']);
+const dogGroomer  = await rnio.token.grant(['dogs.read', 'dogs.feed.rex', 'dogs.feed.fido']);
+const readOnly    = await rnio.token.grant(['dogs.read', 'users.read']);
+```
+
+**Template variables** — `:param` in a permission string is replaced with the actual URL path segment when the request arrives. This lets one permission entry cover an entire family of scoped resources:
+
+```js
+router.post('/dogs/feed/:name', {
+  permissions: ['dogs.feed.:name'],
+  func: (params) => ({ fed: params.name })
+});
+// Token with 'dogs.feed.fido' → passes for /dogs/feed/fido
+// Token with 'dogs.feed.fido' → 403 for /dogs/feed/rex
 ```
 
 ## Token API
@@ -91,4 +176,4 @@ At check time RestNio substitutes `:name` with the actual value matched from the
 
 ---
 
-*[← Params & Validation](Params) | [HTTP Behavior →](HTTP)*
+*[← HTTP Behavior](HTTP) | [WebSocket Basics →](WebSocket)*

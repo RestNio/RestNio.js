@@ -24,31 +24,31 @@ RestNio is a lightweight Node.js server framework where every route is **bimodal
 | Page | Summary |
 |------|---------|
 | [Quick Start](Quick-Start) | Smallest working server in 10 lines |
-| [Routing](Routing) | Bimodal, HTTP-only, WS-only, path params, nested routers |
+| [Routing](Routing) | Bimodal, HTTP-only, WS-only, path params, regex, nested routers |
 | [Params & Validation](Params) | Type coercion, shorthand helpers, checks, formatters |
-
-### Auth & security
-
-| Page | Summary |
-|------|---------|
-| [Auth](Auth) | JWT tokens, `token.grant()`, permission checks |
-| [Default Routes](Default-Routes) | Override `404` / `403` / `500` / `wsConnect` / `wsBin` |
 
 ### HTTP
 
 | Page | Summary |
 |------|---------|
 | [HTTP Behavior](HTTP) | Response types, cookies, manual control, headers |
-| [Plugins](Plugins) | Static files, CORS, rate limiting |
-| [Outbound Connectors](Connectors) | HTTP and WebSocket outbound clients |
+| [Auth & Permissions](Auth) | JWT tokens, `token.grant()`, cookie auth, permission templates |
 
 ### WebSocket
 
 | Page | Summary |
 |------|---------|
-| [WebSocket Basics](WebSocket) | Lifecycle, messaging, `client.state`, subscriptions |
+| [WebSocket Basics](WebSocket) | Unified routing model, RPC pattern, push, subscriptions |
 | [Binary Routing](Binary) | Named binary routes, upload pattern |
 | [Codec Negotiation](Codecs) | JSON (default) and MessagePack |
+
+### Server features
+
+| Page | Summary |
+|------|---------|
+| [Plugins](Plugins) | Static files, CORS, rate limiting |
+| [Default Routes](Default-Routes) | Override `404` / `403` / `500` / `wsConnect` / `wsBin` |
+| [Outbound Connectors](Connectors) | HTTP and WebSocket outbound clients |
 
 ### Reference
 

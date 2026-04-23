@@ -1,6 +1,8 @@
 # Outbound Connectors
 
-RestNio includes HTTP and WebSocket clients for use inside routes or server-side logic.
+RestNio ships HTTP and WebSocket **client** implementations that mirror the same interface you use on the server side. This is useful when a server needs to fan out requests to downstream services, proxy calls to another RestNio instance, or act as a participant in a wider microservice mesh — without reaching for a separate HTTP client library.
+
+Both connectors use the same route-envelope conventions as the server, so talking to another RestNio service feels natural: you send `{ path, params }` objects and receive the same structured responses.
 
 ## One-shot HTTP request
 
@@ -58,4 +60,4 @@ ws.bin(Buffer.from([1, 2, 3]));
 
 ---
 
-*[← Plugins](Plugins) | [Default Routes →](Default-Routes)*
+*[← Default Routes](Default-Routes) | [TypeScript →](TypeScript)*

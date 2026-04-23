@@ -1,66 +1,35 @@
 # Params, Validation, and Formatting
 
-A route definition object can contain:
+RestNio's parameter system is the engine behind safe, self-documenting routes. Parameters arrive from three sources — URL path segments, query string, and request body — and RestNio merges them all into a single `params` object before your handler is called. By describing the expected parameters alongside the route, you get automatic validation and transformation without any boilerplate.
 
-| Field | Description |
-|-------|-------------|
-| `func` | Route handler `(params, client) => result` |
-| `params` | Map of parameter names to `ParamDef` objects |
-| `permissions` | Array of required permission strings |
-| `isActive` | `false` for middleware-style routes that set headers but return nothing |
+## Where params come from
 
-## ParamDef structure
+**Path parameters** are extracted from the URL itself based on `:variable` placeholders in the route string. They land in `params` just like any other value:
 
 ```js
-{
-  required:           true,       // reject the request if the param is absent
-  ignoreEmptyString:  true,       // treat '' as absent
-  default:            'fallback', // default value, or a () => value function
-  type:               'string',   // typeof check applied before formatters run
-  prechecks:          [...],      // validators BEFORE formatters
-  formatters:         [...],      // transformers applied in order
-  checks:             [...]       // validators AFTER formatters
-}
+// GET /user/42  →  params.id === '42'
+router.get('/user/:id', (params) => ({ id: params.id }));
 ```
 
-Processing order per parameter: **prechecks → formatters → checks**.
+**Query string and body params** (HTTP) or the `params` field of the WS envelope are merged on top. Query/body values take precedence over identically-named path params.
 
-## Full example
+## Shorthand helpers — the fast path
+
+For common cases, `rnio.params` provides ready-made param definitions you attach directly to the key:
 
 ```js
-const RestNio = require('restnio');
-
-const app = new RestNio((router, rnio) => {
-  router.post('/users', {
-    params: {
-      name: {
-        required: true,
-        type: 'string',
-        formatters: [rnio.params.formatters.str.toLowerCase()],
-        checks: [
-          rnio.params.checks.str.min(3),
-          rnio.params.checks.str.max(40)
-        ]
-      },
-      age: {
-        required: true,
-        type: 'number',
-        checks: [
-          rnio.params.checks.num.isInteger(),
-          rnio.params.checks.num.min(0),
-          rnio.params.checks.num.max(130)
-        ]
-      },
-      role: { default: 'user' }
-    },
-    func: (params) => ({ created: true, params })
-  });
+router.post('/register', {
+  params: {
+    username: rnio.params.string,       // required string
+    age:      rnio.params.integer,      // required whole number
+    email:    rnio.params.email,        // required, validated + lowercased
+    role:     rnio.params.enum('user', 'admin', 'mod')
+  },
+  func: (params) => ({ ok: true, params })
 });
 ```
 
-## Shorthand param helpers
-
-Access via `rnio.params` (instance) or `RestNio.params` (static):
+Access them via `rnio.params` on the instance or `RestNio.params` statically:
 
 | Helper | Type | Description |
 |--------|------|-------------|
@@ -93,7 +62,61 @@ router.post('/order', {
 });
 ```
 
-## Built-in checks
+## Full object notation — complete control
+
+When you need custom validation logic, transformations, or optional fields with defaults, use the full `ParamDef` object. A route definition object can contain:
+
+| Field | Description |
+|-------|-------------|
+| `func` | Route handler `(params, client) => result` |
+| `params` | Map of parameter names to `ParamDef` objects |
+| `permissions` | Array of required permission strings |
+| `isActive` | `false` for middleware-style routes that set headers but return nothing |
+
+### ParamDef structure
+
+```js
+{
+  required:           true,       // reject the request if the param is absent
+  ignoreEmptyString:  true,       // treat '' as absent
+  default:            'fallback', // default value, or a () => value function
+  type:               'string',   // typeof check applied before formatters run
+  prechecks:          [...],      // validators BEFORE formatters
+  formatters:         [...],      // transformers applied in order
+  checks:             [...]       // validators AFTER formatters
+}
+```
+
+Processing order per parameter: **prechecks → formatters → checks**.
+
+### Full example
+
+```js
+router.post('/users', {
+  params: {
+    name: {
+      required: true,
+      type: 'string',
+      formatters: [rnio.params.formatters.str.toLowerCase()],
+      checks: [
+        rnio.params.checks.str.min(3),
+        rnio.params.checks.str.max(40)
+      ]
+    },
+    age: {
+      required: true,
+      type: 'number',
+      checks: [
+        rnio.params.checks.num.isInteger(),
+        rnio.params.checks.num.min(0),
+        rnio.params.checks.num.max(130)
+      ]
+    },
+    role: { default: 'user' }
+  },
+  func: (params) => ({ created: true, params })
+});
+```
 
 **Numeric** (`rnio.params.checks.num`):
 

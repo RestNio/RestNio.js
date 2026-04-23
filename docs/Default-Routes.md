@@ -61,4 +61,4 @@ This is exactly how the built-in [CORS plugin](Plugins) works internally.
 
 ---
 
-*[← Outbound Connectors](Connectors) | [TypeScript →](TypeScript)*
+*[← Plugins](Plugins) | [Outbound Connectors →](Connectors)*

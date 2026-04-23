@@ -9,19 +9,19 @@
 - [Routing](Routing)
 - [Params & Validation](Params)
 
-**Auth & security**
-- [Auth](Auth)
-- [Default Routes](Default-Routes)
-
 **HTTP**
 - [HTTP Behavior](HTTP)
-- [Plugins](Plugins)
-- [Outbound Connectors](Connectors)
+- [Auth & Permissions](Auth)
 
 **WebSocket**
 - [WebSocket Basics](WebSocket)
 - [Binary Routing](Binary)
 - [Codec Negotiation](Codecs)
+
+**Server features**
+- [Plugins](Plugins)
+- [Default Routes](Default-Routes)
+- [Outbound Connectors](Connectors)
 
 **Reference**
 - [TypeScript](TypeScript)

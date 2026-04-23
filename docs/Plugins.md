@@ -1,6 +1,6 @@
 # Built-in Plugins
 
-Plugins are router functions — mount them with `router.use()`.
+Plugins are router functions — mount them with `router.use()`. RestNio ships three built-in plugins that cover the most common cross-cutting concerns in a web server: static file serving, CORS, and rate limiting. Because they are just route functions, they compose naturally with the rest of your routing and can be scoped to any path prefix.
 
 ## Static file serving
 
@@ -35,23 +35,31 @@ router.use('/docs', rnio.serve('./docs/', {
 
 ## CORS
 
+**Cross-Origin Resource Sharing (CORS)** is a browser security mechanism that blocks JavaScript on one origin (e.g. `https://my-app.com`) from calling an API on a different origin (e.g. `https://api.example.com`). The server must include specific response headers to opt in to cross-origin requests; without them the browser silently rejects the response.
+
+RestNio's `rnio.cors()` plugin handles all of this — `Access-Control-Allow-Origin`, preflight `OPTIONS` responses, credentials — with a single `router.use()` call.
+
 ```js
-// Open API — allow all origins
+// Open API — allow any origin (no args)
 router.use('/api**', rnio.cors());
 
-// Restricted to one origin
+// Locked down to one origin
 router.use('/api**', rnio.cors({
-  origin:           'https://example.com',
-  allowCredentials: true,
-  headers:          '*',    // echo Access-Control-Request-Headers, or list explicitly
-  preflight:        true,   // handle OPTIONS preflight (default: true)
-  maxAge:           86400   // cache preflight response for 24 h
+  origin:           'https://my-app.com',
+  allowCredentials: true,       // allow cookies / auth headers
+  headers:          '*',        // echo Access-Control-Request-Headers, or list explicitly
+  preflight:        true,       // handle OPTIONS preflight (default: true)
+  maxAge:           86400       // cache preflight response for 24 h
 }));
 ```
 
-CORS routes are registered with `isActive: false` — they set headers but do not satisfy the "responded" check, so subsequent route handlers still run. See [Default Routes](Default-Routes) for more on `isActive`.
+CORS routes are registered with `isActive: false` — they set response headers but do not satisfy the "route responded" check, so the actual handler still runs after them. See [Default Routes](Default-Routes) for more on `isActive`.
 
 ## Rate limiting
+
+`rnio.ratelimit()` protects routes from abuse by tracking request counts per configurable key and rejecting clients that exceed the limit within a sliding window.
+
+**Time values** accept a plain number (milliseconds) or a human-readable [zeit/ms](https://github.com/vercel/ms) string: `'500ms'`, `'30s'`, `'1m'`, `'2h'`, `'1d'`, etc.
 
 ```js
 // 5 requests per minute per IP
@@ -59,7 +67,7 @@ router.use('/login', rnio.ratelimit({
   per:     'address',   // 'address' (default) | 'route' | 'params'
   scope:   'hard',      // 'hard' (default) = whole scope counts; 'soft' = per exact path
   limit:   5,
-  time:    '1m',
+  time:    '1m',        // also accepts: 60000 (ms), '60s', '1 minute'
   code:    429,
   message: 'Too many login attempts',
   headers: true         // send x-ratelimit-* headers (default: true)

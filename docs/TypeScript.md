@@ -67,4 +67,4 @@ npm run test:types    # compile test/types/ — fails on any type error
 
 ---
 
-*[← Default Routes](Default-Routes) | [Progressive Starter →](Starter)*
+*[← Outbound Connectors](Connectors) | [Progressive Starter →](Starter)*

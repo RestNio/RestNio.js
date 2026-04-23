@@ -1,6 +1,45 @@
 # WebSocket Basics
 
-## Lifecycle hooks
+## A fundamentally different model
+
+Most WebSocket frameworks treat the connection as a raw stream and leave message routing entirely up to you. RestNio takes a different approach: **the WebSocket connection is a first-class, server-wide transport**, and individual messages behave just like HTTP requests.
+
+When a client connects over WebSocket, it sends JSON envelopes like:
+
+```json
+{ "path": "/chat", "params": { "text": "hello" }, "token": "<jwt>" }
+```
+
+RestNio dispatches that exactly as if it were `POST /chat` — the same route match, the same param validation, the same permission check. Routes defined with `router.get()`, `router.post()`, etc. respond to both HTTP and WebSocket messages out of the box. Routes defined with `router.ws()` are WebSocket-only.
+
+### Why this matters
+
+| | Express-style WS | RestNio |
+|--|--|--|
+| Message routing | You write a switch/if chain | Route map, same as HTTP |
+| Param validation | Manual | Full `params` schema on every route |
+| Auth/permissions | Manual | Same JWT system, same `permissions` array |
+| Code sharing | Duplicate or extract helpers | One route definition for both |
+| Server → client push | You manage all sockets | `client.obj()` anywhere, subscriptions |
+
+This makes RestNio ideal for building **RPC-style APIs over WebSocket** — every route is a callable procedure with validated inputs and typed outputs. You get the full power of HTTP-style routing with the real-time capabilities of WebSocket, and you can share almost every route between REST and WS clients.
+
+## Server → client push
+
+Unlike HTTP, a WebSocket connection stays open, so the server can send messages at any time — not just as a response. All `client.send*` methods work outside of a route handler too (e.g. after a database event fires):
+
+```js
+router.ws('/subscribe-price', (params, client) => {
+  client.state.watchedSymbol = params.symbol;
+  client.subscribe('prices');
+  return { watching: params.symbol };
+});
+
+// Called from elsewhere — e.g. a price-feed callback
+function onPriceUpdate(symbol, price) {
+  rnio.subs('prices').obj({ symbol, price, ts: Date.now() });
+}
+```
 
 ```js
 // Fires for every connecting client — return value is sent as MOTD
@@ -100,4 +139,4 @@ router.ws('/notify', (params, client) => {
 
 ---
 
-*[← HTTP Behavior](HTTP) | [Binary Routing →](Binary)*
+*[← Auth & Permissions](Auth) | [Binary Routing →](Binary)*
