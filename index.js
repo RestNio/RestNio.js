@@ -16,6 +16,9 @@ module.exports = require('./lib/RestNio');
  * @typedef {import("./lib/routes/Route").RouteDef} RouteDef
  * @typedef {import("./lib/routes/Route").ParamDef} ParamDef
  * @typedef {import("./lib/client/Client")} Client
+ * @typedef {import("./lib/client/InterClient")} InterClient
+ * @typedef {import("./lib/client/InterClient").InterconnectOptions} InterconnectOptions
+ * @typedef {import("./lib/client/InterClient").ReconnectOptions} ReconnectOptions
  * @typedef {import("./lib/authentication/Token")} Token
  * @typedef {import("./lib/params/").Params} Params
  * @typedef {import("./lib/params/formatters").Formatters} Formatters

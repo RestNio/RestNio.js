@@ -49,6 +49,7 @@ RestNio is a lightweight Node.js server framework where every route is **bimodal
 | [Plugins](Plugins) | Static files, CORS, rate limiting |
 | [Default Routes](Default-Routes) | Override `404` / `403` / `500` / `wsConnect` / `wsBin` |
 | [Outbound Connectors](Connectors) | HTTP and WebSocket outbound clients |
+| [Interconnect (S2S)](Interconnect) | Persistent peer connections between RestNio servers |
 
 ### Reference
 

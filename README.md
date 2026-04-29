@@ -60,6 +60,7 @@ Same route, both protocols. The POST above works over `curl` **and** over a WebS
 - **Plugins** — `serve()`, `cors()`, `ratelimit()` mount as route middleware
 - **Binary WS routing** — named binary routes and codec negotiation (JSON + MessagePack)
 - **Outbound connectors** — `RestNio.request`, `RestNio.http`, `RestNio.websocket`
+- **Interconnect** — persistent peer links between RestNio servers, with reusable route definitions
 - **TypeScript** — ships `.d.ts` with path-param type inference
 
 ## Documentation
@@ -77,6 +78,7 @@ The full guide lives in the **[GitHub Wiki](https://github.com/RestNio/RestNio.j
 | [Codecs](https://github.com/RestNio/RestNio.js/wiki/Codecs) | JSON and MessagePack negotiation |
 | [Plugins](https://github.com/RestNio/RestNio.js/wiki/Plugins) | Static serving, CORS, rate limiting |
 | [Connectors](https://github.com/RestNio/RestNio.js/wiki/Connectors) | Outbound HTTP + WebSocket clients |
+| [Interconnect](https://github.com/RestNio/RestNio.js/wiki/Interconnect) | Persistent server-to-server peer links |
 | [TypeScript](https://github.com/RestNio/RestNio.js/wiki/TypeScript) | Declarations and inference |
 | [Operations](https://github.com/RestNio/RestNio.js/wiki/Operations) | Proxy config, security checklist |
 

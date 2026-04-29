@@ -10,6 +10,9 @@ These route keys are pre-registered and can be replaced via `router.on()` or `op
 | `'wsConnect'` | WebSocket client connects | no-op (no MOTD) |
 | `'wsClose'` | WebSocket client disconnects | no-op |
 | `'wsBin'` | Unhandled binary frame arrives | `throw [400, 'no binary handler active']` |
+| `'interOpen'` | Outbound peer ([Interconnect](Interconnect)) reaches OPEN | no-op |
+| `'interClose'` | Outbound peer socket closes | no-op |
+| `'interFail'` | Outbound peer exhausts `reconnect.maxAttempts` | no-op |
 
 ## Override via `router.on()`
 

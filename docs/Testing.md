@@ -26,6 +26,7 @@ npm run build:types       # regenerate types/_generated/ from JSDoc
 | Static file serving (`serve` plugin) | `test/integration/serve.js` |
 | HTTP connector client | `test/integration/httpConnector.js` |
 | WebSocket connector client | `test/integration/wsConnector.js` |
+| Interconnect (peer link, lifecycle, reconnect, isolation, status, reopen) | `test/integration/interconnect.js` |
 | Param checks, formatters, shorthand helpers | `test/unit/params.js` |
 | Route, Router, RouteMap, ClientSet, Options, PermissionSet, Codec | `test/unit/` directory |
 | TypeScript type inference, path params, schema types | `test/types/baseline.ts`, `test/types/inference.ts` |

@@ -22,6 +22,7 @@
 - [Plugins](Plugins)
 - [Default Routes](Default-Routes)
 - [Outbound Connectors](Connectors)
+- [Interconnect (S2S)](Interconnect)
 
 **Reference**
 - [TypeScript](TypeScript)

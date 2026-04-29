@@ -58,6 +58,14 @@ ws.bin(Buffer.from([1, 2, 3]));
 
 `RestNio.websocket(url, onMessage, onConnect, onClose, onError, timeout?, extra?)`
 
+## Server-to-server links
+
+For *persistent* peer connections between two RestNio servers (e.g. an edge
+turbine controller uplinking to a park-level coordinator), see
+**[Interconnect](Interconnect)**. It builds on top of the websocket
+transport but adds reconnect, peer-scoped route isolation, and an
+`rnio.inter('name')` registry so multiple peers can be addressed by name.
+
 ---
 
-*[← Default Routes](Default-Routes) | [TypeScript →](TypeScript)*
+*[← Default Routes](Default-Routes) | [Interconnect →](Interconnect)*
