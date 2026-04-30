@@ -242,6 +242,225 @@ describe('InterClient (integration)', function() {
         ws.close();
     });
 
+    describe('per-envelope actor (_actor) scoping', () => {
+
+        // Park-side helper: grab the *raw* ws representing the peer that just
+        // connected. We use this to send hand-crafted text frames carrying
+        // `_actor` directly, simulating what a relay would emit.
+        async function parkPeerSocket() {
+            // Wait for the upgrade to land.
+            const deadline = Date.now() + 1000;
+            while (Date.now() < deadline) {
+                if (park.rnio.wsServer.clients.size > 0) return [...park.rnio.wsServer.clients][0];
+                await new Promise(r => setTimeout(r, 5));
+            }
+            throw new Error('no peer socket on park');
+        }
+
+        it('clamps caller perms to the link cap and exposes client.actor', async () => {
+            // Cap: pitch.*. Caller claims pitch.motor + admin.flash. Intersect
+            // drops admin.flash, keeps pitch.motor. The /cmd route's perm
+            // requirement (pitch.motor) is met via the clamped set.
+            const hits = [];
+            park = await spinUp(() => {});
+            turbine = await spinUp(() => {});
+
+            const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+                permissions: ['pitch.*'],
+                routes: (r) => {
+                    r.ws('/cmd', {
+                        permissions: ['pitch.motor'],
+                        func: (params, client) => {
+                            hits.push({
+                                actor: client.actor,
+                                effective: [...client.effectivePermissions],
+                                params,
+                            });
+                        }
+                    });
+                }
+            });
+            await new Promise(res => { peer.onConnect = res; });
+
+            const sock = await parkPeerSocket();
+            sock.send(JSON.stringify({
+                path: '/cmd',
+                params: { kw: 12 },
+                _actor: { sub: 'user-x', perms: ['pitch.motor', 'admin.flash'] },
+            }));
+
+            await until(() => hits, h => h.length === 1, 1000);
+            hits[0].actor.should.have.property('sub', 'user-x');
+            hits[0].effective.should.containEql('pitch.motor');
+            hits[0].effective.should.not.containEql('admin.flash');
+            hits[0].params.should.have.property('kw', 12);
+        });
+
+        it('rejects when claimed perms don\'t survive the cap', async () => {
+            // Caller claims admin.flash only; cap is pitch.*. Intersection is
+            // empty, so a route requiring pitch.motor must reject (403).
+            const hits = [];
+            park = await spinUp(() => {});
+            turbine = await spinUp(() => {});
+
+            const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+                permissions: ['pitch.*'],
+                routes: (r) => {
+                    r.ws('/cmd', {
+                        permissions: ['pitch.motor'],
+                        func: () => { hits.push(true); }
+                    });
+                }
+            });
+            await new Promise(res => { peer.onConnect = res; });
+
+            // Park collects whatever turbine echoes back (the 403 envelope).
+            const errs = [];
+            park.rnio.wsServer.clients.forEach(c => {
+                c.on('message', m => errs.push(m.toString()));
+            });
+
+            const sock = await parkPeerSocket();
+            sock.send(JSON.stringify({
+                path: '/cmd',
+                _actor: { sub: 'user-x', perms: ['admin.flash'] },
+            }));
+
+            await until(() => errs, e => e.length >= 1, 1000);
+            hits.length.should.equal(0);
+            const reply = JSON.parse(errs[0]);
+            should(reply.code).equal(403);
+        });
+
+        it('clamps caller-broader perms down to the cap', async () => {
+            // Caller claims pitch.* (broad); cap is pitch.set_telem only.
+            // Effective set must be pitch.set_telem — caller still gets to
+            // hit set_telem, but not motor.
+            const hits = [];
+            park = await spinUp(() => {});
+            turbine = await spinUp(() => {});
+
+            const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+                permissions: ['pitch.set_telem'],
+                routes: (r) => {
+                    r.ws('/telem', {
+                        permissions: ['pitch.set_telem'],
+                        func: (_p, client) => { hits.push([...client.effectivePermissions]); }
+                    });
+                    r.ws('/motor', {
+                        permissions: ['pitch.motor'],
+                        func: () => { hits.push('motor-ran'); }
+                    });
+                }
+            });
+            await new Promise(res => { peer.onConnect = res; });
+
+            const sock = await parkPeerSocket();
+            sock.send(JSON.stringify({
+                path: '/telem',
+                _actor: { sub: 'u', perms: ['pitch.*'] },
+            }));
+            await until(() => hits, h => h.length === 1, 1000);
+            hits[0].should.containEql('pitch.set_telem');
+            hits[0].should.not.containEql('pitch.motor');
+
+            // /motor must reject — pitch.motor isn't in the clamped set.
+            sock.send(JSON.stringify({
+                path: '/motor',
+                _actor: { sub: 'u', perms: ['pitch.*'] },
+            }));
+            // give it a moment; on reject `hits` stays at 1.
+            await new Promise(r => setTimeout(r, 100));
+            hits.length.should.equal(1);
+        });
+
+        it('without _actor falls back to peer connection perms', async () => {
+            const hits = [];
+            park = await spinUp(() => {});
+            turbine = await spinUp(() => {});
+
+            const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+                permissions: ['pitch.*'],
+                routes: (r) => {
+                    r.ws('/cmd', {
+                        permissions: ['pitch.motor'],
+                        func: (_p, client) => {
+                            hits.push({ actor: client.actor, eff: [...client.effectivePermissions] });
+                        }
+                    });
+                }
+            });
+            await new Promise(res => { peer.onConnect = res; });
+
+            const sock = await parkPeerSocket();
+            sock.send(JSON.stringify({ path: '/cmd' }));
+
+            await until(() => hits, h => h.length === 1, 1000);
+            should(hits[0].actor).be.null();
+            hits[0].eff.should.containEql('pitch.*');
+        });
+
+        it('plain ws client cannot impersonate via _actor', async () => {
+            // Trust gate: only InterClient honors _actor. A regular ws client
+            // sending the same field has it ignored — its connection perms
+            // (empty by default) are the only thing checked.
+            const hits = [];
+            turbine = await spinUp((router) => {
+                router.ws('/cmd', {
+                    permissions: ['pitch.motor'],
+                    func: (_p, client) => {
+                        hits.push({ actor: client.actor, eff: [...client.effectivePermissions] });
+                    }
+                });
+            });
+
+            const { connect, collect, encodeJson, waitFor, decodeAny } = require('../helpers/wsClient');
+            const ws = await connect(turbine.wsUrl);
+            const got = collect(ws);
+            ws.send(encodeJson({
+                path: '/cmd',
+                _actor: { sub: 'sneaky', perms: ['pitch.motor'] },
+            }));
+            await waitFor(got, 1, 500);
+            const reply = decodeAny('json', got[0]);
+            // Route never ran; reply is a 403.
+            hits.length.should.equal(0);
+            should(reply.code).equal(403);
+            ws.close();
+        });
+
+        it('clears actor + effectivePermissions after dispatch', async () => {
+            // Read the getters AFTER the handler returns to confirm cleanup.
+            // We snapshot a reference to `client` from inside the handler and
+            // re-check it on the outside in a tick.
+            let clientRef = null;
+            park = await spinUp(() => {});
+            turbine = await spinUp(() => {});
+
+            const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+                permissions: ['pitch.*'],
+                routes: (r) => {
+                    r.ws('/cmd', {
+                        permissions: ['pitch.motor'],
+                        func: (_p, client) => { clientRef = client; }
+                    });
+                }
+            });
+            await new Promise(res => { peer.onConnect = res; });
+
+            const sock = await parkPeerSocket();
+            sock.send(JSON.stringify({
+                path: '/cmd',
+                _actor: { sub: 'u', perms: ['pitch.motor'] },
+            }));
+
+            await until(() => clientRef, c => c !== null, 1000);
+            // Outside the dispatch context, getters return the connection-default.
+            should(clientRef.actor).be.null();
+            clientRef.effectivePermissions.should.equal(clientRef.permissions);
+        });
+    });
+
     it('peer.status reflects connection state through the lifecycle', async () => {
         park = await spinUp(() => {});
         turbine = await spinUp(() => {});
