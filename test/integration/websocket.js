@@ -53,6 +53,52 @@ describe('WebSocket routing (integration)', function() {
         should(closeReason).not.be.null();
     });
 
+    it('isolates a malformed frame to the offending client (no server crash)', async () => {
+        // Regression: a single bad frame from one client used to throw
+        // synchronously out of the ws Receiver, escape RestNio, and crash the
+        // whole process — taking every other connected client down with it.
+        // The fix attaches a per-client `'error'` listener so only the
+        // offending socket is torn down.
+        let closeReason = null;
+        server = await spinUp((router) => {
+            router.ws('/hello', () => 'hi');
+            router.on('wsClose', (params) => { closeReason = params.reason; });
+        });
+        const a = await connect(server.wsUrl);
+        const b = await connect(server.wsUrl);
+        const gotB = collect(b);
+        // Swallow the client-side error event so mocha doesn't treat the
+        // forced disconnect as a test failure.
+        a.on('error', () => {});
+
+        // Craft a frame ws will reject in `getInfo()` with
+        // WS_ERR_UNEXPECTED_RSV_2_3. Byte 0: FIN(1) RSV1(0) RSV2(1) RSV3(0)
+        // opcode(0010 binary) = 0xA2. Byte 1: mask(0) length(0) = 0x00.
+        // ws.send() can't be used because it only emits valid frames, so we
+        // write directly to the underlying TCP socket.
+        a._socket.write(Buffer.from([0xA2, 0x00]));
+
+        // The offending client must close.
+        await new Promise((resolve, reject) => {
+            const t = setTimeout(() => reject(new Error('A did not close')), 500);
+            a.once('close', () => { clearTimeout(t); resolve(); });
+        });
+
+        // The other client must still be reachable and the server still alive.
+        b.send(encodeJson({ path: '/hello' }));
+        await waitFor(gotB, 1);
+        decodeAny('json', gotB[gotB.length - 1]).should.equal('hi');
+        b.close();
+
+        // wsClose route fired with the protocol-error status.
+        const deadline = Date.now() + 200;
+        while (closeReason === null && Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 10));
+        }
+        should(closeReason).not.be.null();
+        closeReason[0].should.equal(1002);
+    });
+
     it('supports subscriptions and broadcasting via subs()', async () => {
         server = await spinUp((router, rnio) => {
             router.ws('/sub', (params, client) => {
