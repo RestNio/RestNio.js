@@ -62,6 +62,41 @@ describe('RouteMap', () => {
             });
         });
 
+        describe('named greedy capture (`:name*` / `:name**`)', () => {
+            it('captures tail under a slash with `:rest*`', () => {
+                const m = new RouteMap();
+                m.set('/api/:rest*', { id: 'tail' });
+                const a = m.get('/api/a');
+                a.routes.should.have.length(1);
+                a.pathParams.rest.should.equal('a');
+                const ab = m.get('/api/a/b/c');
+                ab.pathParams.rest.should.equal('a/b/c');
+                const empty = m.get('/api/');
+                empty.routes.should.have.length(1);
+                empty.pathParams.rest.should.equal('');
+                m.get('/api').routes.should.have.length(0);
+            });
+
+            it('combines plain segment + greedy tail', () => {
+                const m = new RouteMap();
+                m.set('/turbine/:turbineID/:rest*', { id: 'relay' });
+                const hit = m.get('/turbine/wt1/pitch/cmd/motor');
+                hit.routes.should.have.length(1);
+                hit.pathParams.turbineID.should.equal('wt1');
+                hit.pathParams.rest.should.equal('pitch/cmd/motor');
+            });
+
+            it('`:rest**` includes the index path itself', () => {
+                const m = new RouteMap();
+                m.set('/api:rest**', { id: 'inclusive-named' });
+                m.get('/api').pathParams.rest.should.equal('');
+                m.get('/api/').pathParams.rest.should.equal('/');
+                m.get('/api/a').pathParams.rest.should.equal('/a');
+                m.get('/api/a/b').pathParams.rest.should.equal('/a/b');
+                m.get('/apikey').routes.should.have.length(0);
+            });
+        });
+
         it('returns all matching routes when multiple regexes overlap', () => {
             const m = new RouteMap();
             m.set('/foo', { id: 1 });

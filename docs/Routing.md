@@ -73,6 +73,25 @@ router.get('/$breed/info', (params) => `breed: ${params.breed}`);
 
 The `**` variant without a leading slash (`/api**`) is useful for mounting middleware that should match both the exact path and all sub-paths.
 
+### Named tail capture: `:name*` and `:name**`
+
+The bare wildcards above match a tail but don't expose it to the handler. When you need the matched suffix in `params` (typical for proxy / relay routes that forward whatever was after a known prefix), use the named forms:
+
+| Pattern | Behavior | `params.rest` for `/turbine/wt1/pitch/cmd/motor` |
+|---------|----------|---------------------------------------------------|
+| `/turbine/:turbineID/:rest*` | Captures everything under the preceding slash. Tail can be empty. | `'pitch/cmd/motor'` |
+| `/api:rest**` | Captures both the index path itself and everything under it. Includes the leading slash when present. | (`/api` → `''`, `/api/` → `'/'`, `/api/x` → `'/x'`) |
+
+```js
+// Forward anything below /turbine/<id>/ to a peer.
+router.all('/turbine/:turbineID/:rest*', (params, client) => {
+  const peer = rnio.inter('park');
+  peer.obj({ path: '/' + params.rest, params });
+});
+```
+
+`:rest*` is the right tool for relay/proxy routes — combined with [`router.proxy()`](Interconnect#router-proxy) you rarely register the catch-all by hand.
+
 ## Advanced path patterns
 
 Because paths are compiled to regular expressions internally, regex metacharacters work directly in path strings. This lets you match complex URL shapes without writing a custom middleware.

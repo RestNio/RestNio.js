@@ -174,6 +174,31 @@ router.post('/dogs/feed/:name', {
 
 At check time RestNio substitutes `:name` with the actual value matched from the URL. A token granting `dogs.feed.fido` passes for `/dogs/feed/fido` but fails for `/dogs/feed/rex`.
 
+## Effective permissions and `client.actor`
+
+Inside a handler, `client.permissions` is the connection's own permission set — the perms granted to *this* client at upgrade time (via JWT or `interconnect` options). For most routes that's also the set RestNio used to gate access.
+
+In relay scenarios involving [server-to-server interconnect](Interconnect#per-envelope-actor-scoping-_actor), an envelope can carry an upstream caller's identity claim in the reserved `_actor` field. When that fires, RestNio:
+
+- Clamps the claim against the connection's perms (the cap) and uses the result for the route's permission check.
+- Exposes the original claim as `client.actor` (`{sub, perms, ...}`).
+- Exposes the clamped set as `client.effectivePermissions`.
+
+```js
+router.ws('/pitch/cmd/motor', {
+  permissions: ['pitch.motor'],
+  func: (params, client) => {
+    log.info(`motor cmd by ${client.actor?.sub ?? 'direct-client'}`);
+    // client.effectivePermissions  → set used for the permission check above.
+    // client.permissions           → connection cap (untouched by the envelope).
+  },
+});
+```
+
+When no `_actor` is present (or the envelope arrives on a non-peer client), `client.actor` is `null` and `client.effectivePermissions` falls back to `client.permissions`. Both are concurrency-safe across awaits via `AsyncLocalStorage` — concurrent envelopes on the same client see their own scope.
+
+The `_actor` field is honored only on outbound peer links (`InterClient`). Regular WS clients can't impersonate by setting it; the framework ignores the field on those connections.
+
 ---
 
 *[← HTTP Behavior](HTTP) | [WebSocket Basics →](WebSocket)*
