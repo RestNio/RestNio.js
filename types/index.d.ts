@@ -313,6 +313,26 @@ declare class RestNio {
 
     /** Starts the server and binds to a port (defaults to `options.port`). */
     bind(port?: number): void;
+
+    /**
+     * Opens a persistent outbound websocket to another RestNio server and
+     * registers it under `name`. Returns the {@link InterClient} — use it
+     * to push envelopes (`peer.obj(...)`) and to attach a {@link SubBridge}
+     * for cross-link pub/sub. Frames sent before the socket is OPEN are
+     * buffered and flushed on connect.
+     *
+     * Throws if a peer with the same `name` is already registered.
+     */
+    interconnect(
+        name: string,
+        url: string,
+        options?: import('./_generated/lib/client/InterClient').InterconnectOptions,
+    ): import('./_generated/lib/client/InterClient');
+
+    /**
+     * Looks up a registered outbound peer by name. Throws if none exists.
+     */
+    inter(name: string): import('./_generated/lib/client/InterClient');
 }
 
 declare namespace RestNio {
