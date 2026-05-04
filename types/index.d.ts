@@ -169,6 +169,39 @@ interface SmartWsBin {
     (routedef: WsBinRouteFunc | WsBinRouteDef): void;
 }
 
+/** Anything with `.obj()` accepts forwarded envelopes (Client or ClientSet). */
+interface ProxyTarget {
+    obj(envelope: unknown): unknown;
+}
+
+/** `router.proxy(prefix, opts)` — catch-all relay forwarder. */
+interface ProxyOptions {
+    /** The upstream — Client / ClientSet, or a function resolving one. */
+    target: ProxyTarget | ((params: Record<string, unknown>, client: Client) => ProxyTarget | null | undefined);
+    /** Permission requirements at this hop. Standard route-perm syntax. */
+    permissions?: readonly string[];
+    /** HTTP methods to register for. Defaults to all. WS always registered. */
+    methods?: readonly string[];
+}
+
+/** Subscription-bridge config — see `client.subBridge`. */
+interface SubBridgeOptions {
+    /** Local channel names whose frames flow OUT to the peer. `'*'` = all. */
+    out?: readonly string[] | '*';
+    /** Inbound `sub.frame` channels to re-publish locally. `'*'` = all. */
+    in?:  readonly string[] | '*';
+    /** Prefix applied to OUT channel names (`local` → `<prefix>.<local>`). */
+    prefix?: string;
+    /** Reserved for future ref-count-driven subscribe/unsubscribe. v1: ignored. */
+    onDemand?: boolean;
+}
+
+/** Live `SubBridge` instance returned by `client.subBridge(opts)`. */
+interface SubBridge {
+    /** Detach the bridge — unsubscribes all virtual proxies. */
+    teardown(): void;
+}
+
 // ---------------------------------------------------------------------------
 // Smart Router — hand-authored so smart signatures win over the loose ones.
 // ---------------------------------------------------------------------------
@@ -218,6 +251,16 @@ declare class Router {
     def(method: string, path: string, routedef: RouteDef | RouteFunc, params?: Record<string, ParamDef>, permissions?: string[], isActive?: boolean): void;
     defFull(fullpath: string, route: import('./_generated/lib/routes/Route')): void;
     prefix(methods?: string): string;
+
+    /**
+     * Catch-all relay: forwards every request under `prefix` (HTTP + WS) to a
+     * target Client / ClientSet / function-resolved upstream. Internally
+     * registers on `${prefix}/:rest*`. Captures the post-prefix path as
+     * `params.rest`, mints a fresh `_actor` from the calling client (or
+     * preserves an inbound one), and pushes via `target.obj(...)`. Returns
+     * 503 when the target is missing.
+     */
+    proxy(prefix: string, opts: ProxyOptions): void;
 }
 
 declare namespace Router {
