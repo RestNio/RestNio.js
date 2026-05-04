@@ -81,14 +81,13 @@ rnio.interconnect('park', 'ws://park.local/', {
   // exponential-backoff reconnect (defaults shown)
   reconnect: { enabled: true, minDelay: 500, maxDelay: 30000, factor: 2, jitter: 0.2 },
 
-  // lifecycle hooks
-  onConnect: (peer) => {},
-  onClose:   (reason, peer) => {},  // reason = [code, reasonString]
-  onError:   (err, peer) => {},
-
-  // route registration — see "Routing model" below
+  // route registration — see "Routing model" below.
+  // Lifecycle handlers (interOpen / interClose / interError / interFail)
+  // are registered here too via `router.on(...)` — see "Lifecycle routes".
   routes: (router, peer) => {
     router.ws('/cmd', () => { /* … */ });
+    router.on('interOpen',  () => { /* fired on every (re)connect */ });
+    router.on('interClose', () => { /* fired on every close       */ });
   },
 
   // opt in to a peer-private route table (see "Isolated mode")
@@ -213,23 +212,29 @@ turbine.interconnect('park', parkUrl, {
 
 ## Lifecycle routes
 
-Peers expose three connection-lifecycle routes that mirror the existing
+Peers expose four connection-lifecycle routes that mirror the existing
 `wsConnect` / `wsClose` pattern. Register handlers with `router.on(...)` —
 they receive `(params, peer)` so a single handler can fan out across
 multiple named peers.
 
-| Route        | When it fires | `params` |
-|--------------|---------------|----------|
-| `interOpen`  | Socket reaches OPEN. Fires once on first connect and once per successful reconnect. | `{ url, attempts }` |
-| `interClose` | Underlying socket closed. Fires whether the close was initiated by the remote, the network, or a local `peer.close()`. | `{ code, reason, attempts }` |
-| `interFail`  | `reconnect.maxAttempts` exhausted. Fires once and the peer enters the `'failed'` state — no further auto-reconnects until `peer.reopen()`. | `{ attempts, lastError }` |
+| Route         | When it fires | `params` |
+|---------------|---------------|----------|
+| `interOpen`   | Socket reaches OPEN. Fires once on first connect and once per successful reconnect. | `{ url, attempts }` |
+| `interClose`  | Underlying socket closed. Fires whether the close was initiated by the remote, the network, or a local `peer.close()`. | `{ code, reason, attempts }` |
+| `interError`  | Underlying ws error (connect failure, mid-flight error, etc). Fires per error. By default RestNio does not log these — register a handler to surface or count them. | `{ error }` |
+| `interFail`   | `reconnect.maxAttempts` exhausted. Fires once and the peer enters the `'failed'` state — no further auto-reconnects until `peer.reopen()`. | `{ attempts, lastError }` |
 
 ```js
 turbine.interconnect('park', parkUrl, {
   reconnect: { maxAttempts: 5 },
   routes: (router) => {
-    router.on('interOpen',  (p, peer) => log.info('linked',     peer.name, p));
-    router.on('interClose', (p, peer) => log.warn('lost',       peer.name, p));
+    // Send a register envelope right after the link is up.
+    router.on('interOpen',  (p, peer) => {
+      log.info('linked', peer.name, p);
+      peer.obj({ path: '/turbine/register', params: { id: 'wt1' } });
+    });
+    router.on('interClose', (p, peer) => log.warn('lost', peer.name, p));
+    router.on('interError', (p, peer) => log.error('err',  peer.name, p.error));
     router.on('interFail',  (p, peer) => {
       log.error('peer failed', peer.name, p);
       // Schedule a *much* slower retry — e.g. wait 5 minutes before trying again.
@@ -239,12 +244,10 @@ turbine.interconnect('park', parkUrl, {
 });
 ```
 
-The plain callback form (`onConnect`, `onClose`, `onError` in the options
-object) still works and fires alongside the route handlers — useful when
-you want a closure-scoped reaction without registering a route. Route
-handlers go through the full RestNio routing machinery (param checks,
-permissions, etc.) and are the recommended path for anything beyond
-trivial logging.
+There are no parallel callback options on `interconnect()` — lifecycle
+events flow through the standard route system uniformly. Use `router.on(...)`
+for everything, including the "send register envelope right after connect"
+pattern.
 
 ## Reconnect behavior
 

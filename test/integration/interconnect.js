@@ -51,7 +51,7 @@ describe('InterClient (integration)', function() {
         turbine = await spinUp(() => {});
 
         const peer = turbine.rnio.interconnect('park', park.wsUrl);
-        await new Promise(res => { peer.onConnect = res; });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
         peer.obj({ path: '/setPower', params: { kw: 1500 } });
 
         await until(() => got, (g) => g.length === 1, 1000);
@@ -75,7 +75,7 @@ describe('InterClient (integration)', function() {
                 r.ws('/cmd', (params) => { cmds.push(params); });
             }
         });
-        await new Promise(res => { peer.onConnect = res; });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
         peer.obj({ path: '/register' });
 
         await until(() => cmds, (c) => c.length === 1, 1000);
@@ -92,7 +92,7 @@ describe('InterClient (integration)', function() {
             isolate: true,
             routes: (r) => r.ws('/cmd', () => { peerHits.push(true); })
         });
-        await new Promise(res => { peer.onConnect = res; });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
 
         // Hit the turbine's *main* socket from a fresh ws client and try /cmd.
         const { connect, collect, encodeJson, waitFor, decodeAny } = require('../helpers/wsClient');
@@ -133,7 +133,7 @@ describe('InterClient (integration)', function() {
         let connects = 0;
         const peer = turbine.rnio.interconnect('park', park.wsUrl, {
             reconnect: { enabled: true, minDelay: 50, maxDelay: 200, factor: 2, jitter: 0 },
-            onConnect: () => { connects++; }
+            routes: (router) => router.on('interOpen', () => { connects++; }),
         });
         await until(() => connects, (c) => c >= 1, 1000);
 
@@ -153,8 +153,10 @@ describe('InterClient (integration)', function() {
         let closes = 0;
         const peer = turbine.rnio.interconnect('park', park.wsUrl, {
             reconnect: { enabled: true, minDelay: 50, maxDelay: 200, factor: 2, jitter: 0 },
-            onConnect: () => { connects++; },
-            onClose: () => { closes++; }
+            routes: (router) => {
+                router.on('interOpen',  () => { connects++; });
+                router.on('interClose', () => { closes++;   });
+            },
         });
         await until(() => connects, (c) => c === 1, 1000);
 
@@ -191,7 +193,7 @@ describe('InterClient (integration)', function() {
                 });
             }
         });
-        await new Promise(res => { peer.onConnect = res; });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
 
         // Park push → peer dispatches through main → /cmd fires.
         peer.obj({ path: '/poke' });
@@ -223,7 +225,7 @@ describe('InterClient (integration)', function() {
                 p.mainRouter.ws('/shared', () => { sharedHits.push(true); return 'ok'; });
             }
         });
-        await new Promise(res => { peer.onConnect = res; });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
 
         // Local ws client can reach /shared but NOT /peerOnly.
         const { connect, collect, encodeJson, waitFor, decodeAny } = require('../helpers/wsClient');
@@ -280,7 +282,7 @@ describe('InterClient (integration)', function() {
                     });
                 }
             });
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
 
             const sock = await parkPeerSocket();
             sock.send(JSON.stringify({
@@ -312,7 +314,7 @@ describe('InterClient (integration)', function() {
                     });
                 }
             });
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
 
             // Park collects whatever turbine echoes back (the 403 envelope).
             const errs = [];
@@ -353,7 +355,7 @@ describe('InterClient (integration)', function() {
                     });
                 }
             });
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
 
             const sock = await parkPeerSocket();
             sock.send(JSON.stringify({
@@ -390,7 +392,7 @@ describe('InterClient (integration)', function() {
                     });
                 }
             });
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
 
             const sock = await parkPeerSocket();
             sock.send(JSON.stringify({ path: '/cmd' }));
@@ -446,7 +448,7 @@ describe('InterClient (integration)', function() {
                     });
                 }
             });
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
 
             const sock = await parkPeerSocket();
             sock.send(JSON.stringify({
@@ -479,7 +481,7 @@ describe('InterClient (integration)', function() {
             const peer = turbine.rnio.interconnect('park', park.wsUrl, {
                 permissions: ['pitch.*'],
             });
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
 
             // Now register a proxy route on turbine that forwards
             // /turbine/:turbineID/<rest> down to the park peer. (In real life
@@ -569,7 +571,7 @@ describe('InterClient (integration)', function() {
             const peer = park.rnio.interconnect('turbine', turbine.wsUrl, {
                 permissions: ['pitch.*'],
             });
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
 
             // Wait until the inbound socket on turbine is ready before adding
             // any proxy hops. (Not strictly needed; included for clarity.)
@@ -632,7 +634,7 @@ describe('InterClient (integration)', function() {
             });
             turbine = await spinUp(() => {});
             const peer = turbine.rnio.interconnect('park', park.wsUrl);
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
             peer.subBridge({ prefix: 'wt1', out: ['telem'] });
 
             const { connect, collect, encodeJson, decodeAny, waitFor } = require('../helpers/wsClient');
@@ -703,7 +705,7 @@ describe('InterClient (integration)', function() {
 
             turbine = await spinUp(() => {});
             const peer = turbine.rnio.interconnect('park', park.wsUrl);
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
             peer.subBridge({ out: '*' });
 
             const { connect, collect, encodeJson, decodeAny, waitFor } = require('../helpers/wsClient');
@@ -737,7 +739,7 @@ describe('InterClient (integration)', function() {
             });
             turbine = await spinUp(() => {});
             const peer = turbine.rnio.interconnect('park', park.wsUrl);
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
             peer.subBridge({ prefix: 't', out: ['events'] });
 
             const { connect, collect, encodeJson, decodeAny, waitFor } = require('../helpers/wsClient');
@@ -782,7 +784,7 @@ describe('InterClient (integration)', function() {
                 });
                 turbine = await spinUp(() => {});
                 const peer = turbine.rnio.interconnect('park', park.wsUrl);
-                await new Promise(res => { peer.onConnect = res; });
+                await until(() => peer.isOpen, (x) => x === true, 1000);
                 peer.subBridge({ prefix: 't', out: ['bin'] });
 
                 const { connect, collect, encodeJson } = require('../helpers/wsClient');
@@ -818,7 +820,7 @@ describe('InterClient (integration)', function() {
             });
             turbine = await spinUp(() => {});
             const peer = turbine.rnio.interconnect('park', park.wsUrl);
-            await new Promise(res => { peer.onConnect = res; });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
             const bridge = peer.subBridge({ prefix: 't', out: ['telem'] });
 
             const { connect, collect, encodeJson, decodeAny, waitFor } = require('../helpers/wsClient');
@@ -848,7 +850,7 @@ describe('InterClient (integration)', function() {
         peer.status.should.equal('connecting');
         peer.isOpen.should.equal(false);
 
-        await new Promise(res => { peer.onConnect = res; });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
         peer.status.should.equal('open');
         peer.isOpen.should.equal(true);
 
@@ -894,8 +896,6 @@ describe('InterClient (integration)', function() {
                 router.on('interFail', (params) => { fails.push(params); });
             }
         });
-        // Drop default onError logging (it floods the console with ECONNREFUSED).
-        peer.onError = () => {};
         await until(() => fails, (f) => f.length === 1, 5000);
         fails[0].should.have.property('attempts');
         fails[0].attempts.should.equal(3);
@@ -930,7 +930,6 @@ describe('InterClient (integration)', function() {
                 router.on('interFail', (params) => { fails.push(params); });
             }
         });
-        peer.onError = () => {};
         await until(() => fails, (f) => f.length === 1, 5000);
         peer.status.should.equal('failed');
 
