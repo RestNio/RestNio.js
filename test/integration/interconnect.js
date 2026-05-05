@@ -167,6 +167,30 @@ describe('InterClient (integration)', function() {
         connects.should.equal(1);
     });
 
+    it('interNoPath catches path-less reply frames on the peer link', async () => {
+        // Park 404s an unknown path — the resulting `{code, error}` reply
+        // has no `path`, so it must dispatch to the peer's `interNoPath`
+        // hook (default NOOP) instead of falling through to '/' and
+        // triggering a `router.get('/')` handler echo loop.
+        park = await spinUp(() => { /* no /unknown route → 404 default */ });
+        let mainGetHits = 0;
+        const noPath = [];
+        turbine = await spinUp((router) => {
+            router.get('/', () => { mainGetHits++; return 'home'; });
+        });
+        const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+            routes: (r) => {
+                r.on('interNoPath', (params) => { noPath.push(params); });
+            }
+        });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
+
+        peer.obj({ path: '/unknown' });
+        await until(() => noPath, (n) => n.length === 1, 1000);
+        noPath[0].should.have.property('code', 404);
+        mainGetHits.should.equal(0);
+    });
+
     it('default (shared) — peer routes ALSO reachable by normal ws clients', async () => {
         // No isolation — peer routes write into rnio.routes, so the same /cmd
         // route fires for both park pushes and local ws clients. The handler
@@ -811,6 +835,113 @@ describe('InterClient (integration)', function() {
             }
         });
 
+        it('auto-tears-down on Client.close: server-side bridge proxies cleared on disconnect', async () => {
+            // Server-side (inbound peer) bridge attached in wsConnect. After
+            // the inbound peer client closes, its SubBridge must teardown
+            // automatically so its proxy subscribers no longer leak in the
+            // park's SubscriptionMap. Without this, every emit to the local
+            // channel would keep calling .obj() on a dead client.
+            const channelSeenSubs = () => park.rnio.subs('aux').size;
+            park = await spinUp((router) => {
+                router.on('wsConnect', (_p, client) => {
+                    // Outbound channel — proxy registers as subscriber on `aux`.
+                    client.subBridge({ out: ['aux'] });
+                });
+            });
+            turbine = await spinUp(() => {});
+
+            const peer = turbine.rnio.interconnect('park', park.wsUrl);
+            await until(() => peer.isOpen, (x) => x === true, 1000);
+            // Inbound bridge attached → proxy subscribed to `aux`.
+            await until(() => channelSeenSubs(), (n) => n === 1, 1000);
+
+            peer.close();
+            // After disconnect the proxy must be unsubscribed automatically.
+            await until(() => channelSeenSubs(), (n) => n === 0, 1000);
+        });
+
+        it('survives reconnect: bridge keeps forwarding after peer restart', async () => {
+            // The InterClient instance persists across a transport drop;
+            // its outbound proxies remain registered on the local
+            // SubscriptionMap. After reconnect, frames must still flow.
+            // Server-side bridge is re-attached in wsConnect on each new
+            // inbound socket, so no manual rewiring is required.
+            const parkRoutes = (router) => {
+                router.on('wsConnect', (_p, client) => {
+                    client.subBridge({ in: ['rt.telem'] });
+                });
+                router.ws('/listen', (_p, c) => c.subscribe('rt.telem'));
+            };
+            park = await spinUp(parkRoutes);
+            const port = park.port;
+            turbine = await spinUp(() => {});
+            const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+                reconnect: { enabled: true, minDelay: 30, maxDelay: 60, factor: 1, jitter: 0 },
+            });
+            await until(() => peer.isOpen, (x) => x === true, 1000);
+            peer.subBridge({ prefix: 'rt', out: ['telem'] });
+
+            const { connect, collect, encodeJson, decodeAny, waitFor } = require('../helpers/wsClient');
+            const ws1 = await connect(park.wsUrl);
+            const got1 = collect(ws1);
+            ws1.send(encodeJson({ path: '/listen' }));
+            await until(() => park.rnio.subs('rt.telem').size, (n) => n >= 1, 1000);
+            turbine.rnio.subs('telem').obj({ n: 1 });
+            await waitFor(got1, 1, 1000);
+            decodeAny('json', got1[0]).should.have.property('n', 1);
+            ws1.close();
+
+            // Drop park, peer enters 'closed', reconnect fires.
+            await park.close();
+            await until(() => peer.status, (s) => s !== 'open', 1500);
+
+            // Bring park back on same port. Peer must reconnect.
+            park = await spinUp(parkRoutes, { port });
+            await until(() => peer.isOpen, (x) => x === true, 5000);
+
+            const ws2 = await connect(park.wsUrl);
+            const got2 = collect(ws2);
+            ws2.send(encodeJson({ path: '/listen' }));
+            await until(() => park.rnio.subs('rt.telem').size, (n) => n >= 1, 1000);
+            turbine.rnio.subs('telem').obj({ n: 2 });
+            await waitFor(got2, 1, 1000);
+            decodeAny('json', got2[0]).should.have.property('n', 2);
+            ws2.close();
+        });
+
+        it('drops malformed sub.frame envelopes (non-string channel, undefined payload)', async () => {
+            // A peer that controls the wire could send a bogus sub.frame.
+            // The receiver must validate and refuse to publish — otherwise
+            // local subscribers receive `undefined` or pollute non-string
+            // channel keys.
+            park = await spinUp((router) => {
+                router.on('wsConnect', (_p, client) => {
+                    client.subBridge({ in: '*' }); // wildcard accept
+                });
+            });
+            turbine = await spinUp(() => {});
+            const peer = turbine.rnio.interconnect('park', park.wsUrl);
+            await until(() => peer.isOpen, (x) => x === true, 1000);
+
+            // Local subscriber on the park to count receipts on a known channel.
+            const got = [];
+            const proxy = { obj: (p) => got.push(p), str: () => {}, json: () => {}, bin: () => {}, buf: () => {}, err: () => {}, ok: () => {}, close: () => {} };
+            park.rnio.subscriptions.subscribe('legit', proxy);
+
+            // From the turbine side, push three sub.frame envelopes:
+            //  1) malformed — non-string channel  → must be dropped
+            //  2) malformed — undefined payload   → must be dropped
+            //  3) valid — must be published
+            peer.obj({ _type: 'sub.frame', channel: 42,      payload: { x: 1 } });
+            peer.obj({ _type: 'sub.frame', channel: 'legit'                 });
+            peer.obj({ _type: 'sub.frame', channel: 'legit', payload: { x: 3 } });
+
+            await until(() => got, (g) => g.length >= 1, 1000);
+            // Only the third frame should have made it through.
+            got.length.should.equal(1);
+            got[0].should.have.property('x', 3);
+        });
+
         it('teardown unhooks proxies and stops forwarding', async () => {
             park = await spinUp((router) => {
                 router.on('wsConnect', (_p, client) => {
@@ -840,6 +971,105 @@ describe('InterClient (integration)', function() {
             got.length.should.equal(1);
             ws.close();
         });
+    });
+
+    it('lifecycle: interOpen handler that throws is contained, peer keeps working', async () => {
+        // A buggy interOpen handler must not break the link. _fireLifecycle
+        // catches errors per-handler so the connection state machine stays
+        // intact and subsequent frames still route. The thrown error path
+        // also triggers err() → reply on the wire; remote drops it via
+        // interNoPath.
+        const got = [];
+        park = await spinUp((router) => {
+            router.ws('/cmd', (params) => { got.push(params); });
+        });
+        turbine = await spinUp(() => {});
+        const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+            routes: (router) => {
+                router.on('interOpen', () => { throw new Error('boom'); });
+            }
+        });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
+
+        // Despite the throw, normal ops still work.
+        peer.obj({ path: '/cmd', params: { ok: true } });
+        await until(() => got, (g) => g.length === 1, 1000);
+        got[0].should.have.property('ok', true);
+    });
+
+    it('lifecycle: interError fires with type=transport on socket errors', async () => {
+        // Connecting to a port nothing is listening on triggers a
+        // transport-level error before the socket ever opens.
+        park = await spinUp(() => {});
+        turbine = await spinUp(() => {});
+        const closedPort = park.port;
+        await park.close();
+        park = null;
+
+        const errors = [];
+        const peer = turbine.rnio.interconnect('park', `ws://localhost:${closedPort}`, {
+            reconnect: { enabled: false },
+            routes: (router) => {
+                router.on('interError', (params) => { errors.push(params); });
+            }
+        });
+        await until(() => errors, (e) => e.length >= 1, 2000);
+        errors[0].should.have.property('type', 'transport');
+        errors[0].should.have.property('error');
+        peer.close();
+    });
+
+    it('lifecycle: interError fires with type=protocol on parse failure of inbound text', async () => {
+        // Force a parse failure on the InterClient by having the remote
+        // park push a non-JSON text frame into the peer socket. The peer
+        // must surface it as interError type=protocol.
+        const errors = [];
+        park = await spinUp((router) => {
+            router.on('wsConnect', (_p, client) => {
+                // Reach down into the underlying ws and send raw garbage to
+                // the peer-side InterClient.
+                client.ws.send('not-json-at-all');
+            });
+        });
+        turbine = await spinUp(() => {});
+        const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+            routes: (router) => {
+                router.on('interError', (params) => { errors.push(params); });
+            }
+        });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
+        await until(() => errors, (e) => e.some(x => x.type === 'protocol'), 1000);
+        const protocolErr = errors.find(x => x.type === 'protocol');
+        protocolErr.should.have.property('error');
+        protocolErr.error.should.match(/JSON|Unexpected/i);
+    });
+
+    it('lifecycle: interError fires on _sendBuffer overflow and oldest frames drop', async () => {
+        // Point at a port nothing is listening on so the socket never
+        // opens and the buffer fills. With a tiny limit, we expect the
+        // buffer to cap and droppedFrames to increment.
+        park = await spinUp(() => {});
+        const closedPort = park.port;
+        await park.close();
+        park = null;
+
+        turbine = await spinUp(() => {});
+        const errors = [];
+        const peer = turbine.rnio.interconnect('park', `ws://localhost:${closedPort}`, {
+            sendBufferLimit: 3,
+            reconnect: { enabled: false },
+            routes: (router) => {
+                router.on('interError', (params) => { errors.push(params); });
+            }
+        });
+
+        // Buffer filling: 5 frames, limit 3 → 2 dropped.
+        for (let i = 0; i < 5; i++) peer.obj({ path: '/x', params: { i } });
+
+        await until(() => errors, (e) => e.filter(x => x.type === 'sendBufferOverflow').length === 2, 1500);
+        peer.droppedFrames.should.equal(2);
+        peer._sendBuffer.length.should.equal(3);
+        peer.close();
     });
 
     it('peer.status reflects connection state through the lifecycle', async () => {

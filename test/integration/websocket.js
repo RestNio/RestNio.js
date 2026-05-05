@@ -99,6 +99,45 @@ describe('WebSocket routing (integration)', function() {
         closeReason[0].should.equal(1002);
     });
 
+    it('dispatches path-less envelopes to wsNoPath, not WS:/', async () => {
+        // Regression: earlier versions defaulted missing-path to '/', which
+        // meant a router.get('/') handler also fired on path-less WS frames
+        // (because GET regex covers WS:/ too). Path-less frames must now
+        // route only to the wsNoPath hook, leaving WS:/ untouched.
+        let getHits = 0;
+        let noPathHits = 0;
+        let noPathFrame = null;
+        server = await spinUp((router) => {
+            router.get('/', () => { getHits++; return 'home'; });
+            router.on('wsNoPath', (params) => {
+                noPathHits++;
+                noPathFrame = params;
+            });
+        });
+        const ws = await connect(server.wsUrl);
+        ws.send(encodeJson({ code: 404, error: 'page not found' }));
+        // Give the server a moment to dispatch.
+        await new Promise(r => setTimeout(r, 50));
+        ws.close();
+        getHits.should.equal(0);
+        noPathHits.should.equal(1);
+        noPathFrame.should.have.properties({ code: 404, error: 'page not found' });
+    });
+
+    it('drops path-less envelopes silently when no wsNoPath handler is registered', async () => {
+        // No handler registered → frame is silently dropped, no reply sent
+        // back. Important for breaking reflective parse-error loops.
+        server = await spinUp((router) => {
+            router.get('/', () => 'home');
+        });
+        const ws = await connect(server.wsUrl);
+        const got = collect(ws);
+        ws.send(encodeJson({ code: 500, error: 'boom' }));
+        await new Promise(r => setTimeout(r, 50));
+        ws.close();
+        got.length.should.equal(0);
+    });
+
     it('supports subscriptions and broadcasting via subs()', async () => {
         server = await spinUp((router, rnio) => {
             router.ws('/sub', (params, client) => {
