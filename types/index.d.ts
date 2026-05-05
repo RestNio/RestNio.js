@@ -174,32 +174,24 @@ interface ProxyTarget {
     obj(envelope: unknown): unknown;
 }
 
-/** `router.proxy(prefix, opts)` — catch-all relay forwarder. */
+/** `router.proxy(prefix, opts)` — transparent peer-link forwarder. */
 interface ProxyOptions {
-    /** The upstream — Client / ClientSet, or a function resolving one. */
+    /** Peer-link client (InterClient or peer-promoted WS) — or a resolver. */
     target: ProxyTarget | ((params: Record<string, unknown>, client: Client) => ProxyTarget | null | undefined);
     /** Permission requirements at this hop. Standard route-perm syntax. */
     permissions?: readonly string[];
     /** HTTP methods to register for. Defaults to all. WS always registered. */
     methods?: readonly string[];
+    /** HTTP single-shot timeout (ms). Defaults to 30000. WS sessions ignore. */
+    timeoutMs?: number;
 }
 
-/** Subscription-bridge config — see `client.subBridge`. */
-interface SubBridgeOptions {
-    /** Local channel names whose frames flow OUT to the peer. `'*'` = all. */
-    out?: readonly string[] | '*';
-    /** Inbound `sub.frame` channels to re-publish locally. `'*'` = all. */
-    in?:  readonly string[] | '*';
-    /** Prefix applied to OUT channel names (`local` → `<prefix>.<local>`). */
-    prefix?: string;
-    /** Reserved for future ref-count-driven subscribe/unsubscribe. v1: ignored. */
-    onDemand?: boolean;
-}
-
-/** Live `SubBridge` instance returned by `client.subBridge(opts)`. */
-interface SubBridge {
-    /** Detach the bridge — unsubscribes all virtual proxies. */
-    teardown(): void;
+/** Channel-name patterns honored by a peer-link's shadow whitelist. */
+interface PeerLinkOptions {
+    /** Patterns for channels we may shadow-broadcast OUT to the peer. */
+    shadowOut?: readonly (string | RegExp)[];
+    /** Patterns for channels the peer may shadow-broadcast IN to us. */
+    shadowIn?: readonly (string | RegExp)[];
 }
 
 // ---------------------------------------------------------------------------
@@ -317,16 +309,17 @@ declare class RestNio {
     /**
      * Opens a persistent outbound websocket to another RestNio server and
      * registers it under `name`. Returns the {@link InterClient} — use it
-     * to push envelopes (`peer.obj(...)`) and to attach a {@link SubBridge}
-     * for cross-link pub/sub. Frames sent before the socket is OPEN are
-     * buffered and flushed on connect.
+     * to push envelopes (`peer.obj(...)`) and as the `target` of a
+     * `router.proxy()` hop. Pass `shadowOut` / `shadowIn` to enable the
+     * channel-name whitelist for proxied subscriptions.
      *
-     * Throws if a peer with the same `name` is already registered.
+     * Frames sent before the socket is OPEN are buffered and flushed on
+     * connect. Throws if a peer with the same `name` is already registered.
      */
     interconnect(
         name: string,
         url: string,
-        options?: import('./_generated/lib/client/InterClient').InterconnectOptions,
+        options?: import('./_generated/lib/client/InterClient').InterconnectOptions & PeerLinkOptions,
     ): import('./_generated/lib/client/InterClient');
 
     /**

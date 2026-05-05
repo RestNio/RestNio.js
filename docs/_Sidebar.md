@@ -23,6 +23,7 @@
 - [Default Routes](Default-Routes)
 - [Outbound Connectors](Connectors)
 - [Interconnect (S2S)](Interconnect)
+- [Proxying](Proxying)
 
 **Reference**
 - [TypeScript](TypeScript)
