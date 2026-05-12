@@ -137,6 +137,54 @@ router.ws('/notify', (params, client) => {
 
 `ClientSet` is a standard `Set` — you can iterate it, check `.size`, etc.
 
+## Subscription lifecycle events
+
+`rnio.subscriptions` is a `SubscriptionMap`. In addition to the map surface it also emits lifecycle events so application code can react to channel membership transitions without polling:
+
+```js
+rnio.subscriptions.on('subscribe',   (name, size, client) => { /* every add */ });
+rnio.subscriptions.on('unsubscribe', (name, size, client) => { /* every remove */ });
+rnio.subscriptions.on('first',       (name, client)       => { /* 0 → 1 only */ });
+rnio.subscriptions.on('empty',       (name)               => { /* n → 0 only */ });
+```
+
+| Event | Fires when | Arguments |
+|-------|-----------|-----------|
+| `subscribe`   | Any successful add. | `(name, size, client)` — `size` is the new member count |
+| `unsubscribe` | Any successful remove. | `(name, size, client)` — `size` is the new member count |
+| `first`       | The channel transitions from empty to one member. | `(name, client)` |
+| `empty`       | The channel transitions from `n > 0` to zero members. | `(name)` |
+
+Idempotent add/remove (re-subscribing a client that's already a member, or unsubscribing a non-member) does not fire any event — the underlying `Set` swallows the operation and the member count is unchanged.
+
+`first` / `empty` are pure transition events. They're useful for *power-saver* style hooks where you want to start producing a stream only while someone is listening:
+
+```js
+// Turn an upstream telemetry generator on/off based on whether any
+// client is currently subscribed to its broadcast channel.
+rnio.subscriptions.on('first', (name) => {
+  if (name === 'telem') startSampling();
+});
+rnio.subscriptions.on('empty', (name) => {
+  if (name === 'telem') stopSampling();
+});
+
+router.ws('/telem/subscribe',   (_p, c) => { c.subscribe('telem');   return { ok: true }; });
+router.ws('/telem/unsubscribe', (_p, c) => { c.unsubscribe('telem'); return { ok: true }; });
+```
+
+Listeners use the standard Node `EventEmitter` API:
+
+```js
+rnio.subscriptions.on(event, fn);    // register
+rnio.subscriptions.once(event, fn);  // one-shot
+rnio.subscriptions.off(event, fn);   // remove
+```
+
+The internal emitter has no listener cap, so large deployments with many feature modules can register freely without tripping Node's `MaxListenersExceededWarning`.
+
+`empty` and `unsubscribe` also fire when a member disconnects — `Client.close()` runs `unsubscribeAll()` internally, which calls `subscriptions.unsubscribe(name, client)` for every channel the client was part of. Cleanup hooks therefore don't need a separate `wsClose` route.
+
 ---
 
 *[← Auth & Permissions](Auth) | [Binary Routing →](Binary)*
