@@ -167,17 +167,42 @@ describe('InterClient (integration)', function() {
         connects.should.equal(1);
     });
 
-    it('interNoPath catches path-less reply frames on the peer link', async () => {
+    it('interError catches path-less {code,error} reply frames on the peer link', async () => {
         // Park 404s an unknown path — the resulting `{code, error}` reply
-        // has no `path`, so it must dispatch to the peer's `interNoPath`
-        // hook (default NOOP) instead of falling through to '/' and
-        // triggering a `router.get('/')` handler echo loop.
+        // has no `path`, so it must dispatch to the peer's `interError`
+        // hook with `type: 'inbound'` instead of falling through to '/'
+        // and triggering a `router.get('/')` handler echo loop.
         park = await spinUp(() => { /* no /unknown route → 404 default */ });
         let mainGetHits = 0;
-        const noPath = [];
+        const inErr = [];
         turbine = await spinUp((router) => {
             router.get('/', () => { mainGetHits++; return 'home'; });
         });
+        const peer = turbine.rnio.interconnect('park', park.wsUrl, {
+            routes: (r) => {
+                r.on('interError', (params) => {
+                    if (params && params.type === 'inbound') inErr.push(params);
+                });
+            }
+        });
+        await until(() => peer.isOpen, (x) => x === true, 1000);
+
+        peer.obj({ path: '/unknown' });
+        await until(() => inErr, (n) => n.length === 1, 1000);
+        inErr[0].should.have.property('code', 404);
+        inErr[0].should.have.property('type', 'inbound');
+        mainGetHits.should.equal(0);
+    });
+
+    it('interNoPath catches non-error path-less frames on the peer link', async () => {
+        // Sanity that the generic path-less dispatcher still works for
+        // payloads that are NOT error envelopes — error-shaped frames
+        // have their own dedicated hook (see test above).
+        park = await spinUp((router) => {
+            router.ws('/poke', (_p, client) => client.obj({ kind: 'tick', n: 7 }));
+        });
+        turbine = await spinUp(() => {});
+        const noPath = [];
         const peer = turbine.rnio.interconnect('park', park.wsUrl, {
             routes: (r) => {
                 r.on('interNoPath', (params) => { noPath.push(params); });
@@ -185,10 +210,9 @@ describe('InterClient (integration)', function() {
         });
         await until(() => peer.isOpen, (x) => x === true, 1000);
 
-        peer.obj({ path: '/unknown' });
+        peer.obj({ path: '/poke' });
         await until(() => noPath, (n) => n.length === 1, 1000);
-        noPath[0].should.have.property('code', 404);
-        mainGetHits.should.equal(0);
+        noPath[0].should.have.properties({ kind: 'tick', n: 7 });
     });
 
     it('default (shared) — peer routes ALSO reachable by normal ws clients', async () => {

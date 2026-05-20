@@ -103,7 +103,10 @@ describe('WebSocket routing (integration)', function() {
         // Regression: earlier versions defaulted missing-path to '/', which
         // meant a router.get('/') handler also fired on path-less WS frames
         // (because GET regex covers WS:/ too). Path-less frames must now
-        // route only to the wsNoPath hook, leaving WS:/ untouched.
+        // route only to the wsNoPath hook, leaving WS:/ untouched. Note:
+        // `{code, error}`-shaped envelopes now route to `wsError` instead
+        // (see error-envelope test below); this case covers any OTHER
+        // path-less payload.
         let getHits = 0;
         let noPathHits = 0;
         let noPathFrame = null;
@@ -115,13 +118,37 @@ describe('WebSocket routing (integration)', function() {
             });
         });
         const ws = await connect(server.wsUrl);
-        ws.send(encodeJson({ code: 404, error: 'page not found' }));
+        ws.send(encodeJson({ kind: 'tick', n: 42 }));
         // Give the server a moment to dispatch.
         await new Promise(r => setTimeout(r, 50));
         ws.close();
         getHits.should.equal(0);
         noPathHits.should.equal(1);
-        noPathFrame.should.have.properties({ code: 404, error: 'page not found' });
+        noPathFrame.should.have.properties({ kind: 'tick', n: 42 });
+    });
+
+    it('dispatches path-less {code, error} envelopes to wsError, not wsNoPath', async () => {
+        // RestNio's canonical error reply shape is `{code: number,
+        // error: string}` with no path. Route it to a dedicated `wsError`
+        // hook so apps can react to peer-side failures without scraping
+        // wsNoPath for error-shaped frames.
+        let noPathHits = 0;
+        let errorHits = 0;
+        let errorFrame = null;
+        server = await spinUp((router) => {
+            router.on('wsNoPath', () => { noPathHits++; });
+            router.on('wsError', (params) => {
+                errorHits++;
+                errorFrame = params;
+            });
+        });
+        const ws = await connect(server.wsUrl);
+        ws.send(encodeJson({ code: 404, error: 'page not found' }));
+        await new Promise(r => setTimeout(r, 50));
+        ws.close();
+        noPathHits.should.equal(0);
+        errorHits.should.equal(1);
+        errorFrame.should.have.properties({ code: 404, error: 'page not found' });
     });
 
     it('drops path-less envelopes silently when no wsNoPath handler is registered', async () => {
