@@ -1,6 +1,6 @@
 {
   "name": "restnio",
-  "version": "4.7.2",
+  "version": "4.7.3",
   "description": "Node implementation of RestNio, the easy peasy API system.",
   "main": "index.js",
   "scripts": {
@@ -48,7 +48,7 @@
     "parse-multipart-data": "^1.5.0",
     "qs": "^6.15.1",
     "uuid": "^14.0.0",
-    "ws": "^8.20.0"
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

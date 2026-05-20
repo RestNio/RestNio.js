@@ -9,7 +9,7 @@
 
 const should = require('should');
 const { spinUp } = require('../helpers/server');
-const { connect, collect, encodeJson, waitFor, decodeAny } = require('../helpers/wsClient');
+const { connect, collect, encodeJson, waitFor, decodeAny, msgpackAvailable } = require('../helpers/wsClient');
 
 /**
  * Tiny await-condition helper. Polls `read()` until `pred(v)` is truthy or
@@ -76,6 +76,7 @@ async function buildProxyPair(turbineRoutes, opts = {}) {
         permissions: peerCap,
         shadowOut: centralToTurbine,   // central publishes → flows to turbine
         shadowIn:  turbineToCentral,   // turbine publishes → arrives here
+        ...(opts.subprotocol ? { subprotocol: opts.subprotocol } : {}),
     });
     await until(() => peer.isOpen, x => x === true, 1500);
     const turbinePeer = await Promise.race([
@@ -639,6 +640,101 @@ describe('router.proxy() — ProxyClient integration', function () {
             await park.close();
             await turbine.close();
         }
+    });
+
+    // -----------------------------------------------------------------
+    // Binary-codec peer link (msgpack).
+    //
+    // Proxy-protocol frames (`_proxyenv`, `_proxyr`, ...) have no `path`
+    // field — they're dispatched by proxyDispatch.handle() in
+    // routeEnvelope, not via path lookup. On a JSON peer link they ride
+    // text frames, where routeEnvelope is always invoked. On an msgpack
+    // peer link they ride binary frames, and handleBinaryFrame must
+    // still hand them to routeEnvelope — even though `decoded.path` is
+    // undefined.
+    //
+    // Without that, every proxied request 400s with "no binary handler
+    // active" on the callee side. These two tests pin the contract.
+    // -----------------------------------------------------------------
+    const maybeMsgpack = msgpackAvailable ? describe : describe.skip;
+    maybeMsgpack('msgpack peer link', function () {
+        it('routes a proxied WS request through a binary peer link', async () => {
+            const seen = [];
+            ({ central, turbine, peer } = await buildProxyPair((router) => {
+                router.ws('/pitch/status', (params) => {
+                    seen.push(params);
+                    return { ok: true, rpm: 42 };
+                });
+            }, { subprotocol: 'restnio.msgpack' }));
+
+            // Verify the peer actually negotiated msgpack (would silently
+            // fall back to JSON otherwise — the proxy bug only surfaces on
+            // a real binary link).
+            peer.codec.name.should.equal('restnio.msgpack');
+
+            const ws = await connect(central.wsUrl);
+            const out = collect(ws);
+            ws.send(encodeJson({
+                path: '/turbine/WT1/pitch/status',
+                params: { unit_id: 3 },
+            }));
+            await waitFor(out, 1, 2000);
+            const reply = decodeAny('json', out[0]);
+            reply.should.have.property('ok', true);
+            reply.should.have.property('rpm', 42);
+            seen[0].should.have.property('unit_id', 3);
+            seen[0].should.have.property('turbineID', 'WT1');
+            ws.close();
+        });
+
+        it('streams Buffer chunks via client.bin() through a binary peer link', async () => {
+            // Simulates the session-MCAP download path: turbine streams a
+            // file as a sequence of bin() chunks; central HttpClient
+            // relays each chunk straight to its response body. The whole
+            // path collapses on a JSON link because Buffer round-trips
+            // through `{type:'Buffer',data:[...]}` JSON.stringify — msgpack
+            // preserves the raw bytes.
+            const PAYLOAD = Buffer.concat([
+                Buffer.from('mcap-magic-'),
+                require('crypto').randomBytes(64 * 1024),  // one chunk
+                require('crypto').randomBytes(64 * 1024),  // second chunk
+                Buffer.from('-tail'),
+            ]);
+
+            ({ central, turbine, peer } = await buildProxyPair((router) => {
+                router.get('/download', async (_p, client) => {
+                    const c = client;
+                    c._streaming = true;
+                    // Send in three pieces so we exercise multi-frame
+                    // reassembly on the central HTTP response.
+                    const a = PAYLOAD.subarray(0, 32 * 1024);
+                    const b = PAYLOAD.subarray(32 * 1024, 96 * 1024);
+                    const d = PAYLOAD.subarray(96 * 1024);
+                    c.bin(a);
+                    c.bin(b);
+                    c.bin(d);
+                    c.close();
+                    return Infinity;
+                });
+            }, { subprotocol: 'restnio.msgpack' }));
+
+            peer.codec.name.should.equal('restnio.msgpack');
+
+            const http = require('http');
+            const body = await new Promise((resolve, reject) => {
+                http.get(`${central.url}/turbine/WT1/download`, (res) => {
+                    const chunks = [];
+                    res.on('data', c => chunks.push(c));
+                    res.on('end', () => resolve({
+                        status: res.statusCode,
+                        body:   Buffer.concat(chunks),
+                    }));
+                }).on('error', reject);
+            });
+            body.status.should.equal(200);
+            body.body.length.should.equal(PAYLOAD.length);
+            body.body.equals(PAYLOAD).should.be.true();
+        });
     });
 
 });
