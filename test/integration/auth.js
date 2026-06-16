@@ -1,4 +1,5 @@
 const should = require('should');
+const JWT = require('jsonwebtoken');
 const { spinUp } = require('../helpers/server');
 const { request } = require('../helpers/httpClient');
 
@@ -67,5 +68,26 @@ describe('JWT auth (integration)', function() {
         server = await buildServer();
         const res = await request('GET', `${server.url}/feed`);
         res.status.should.be.within(400, 499);
+    });
+
+    it('returns 401 (not 500) for an expired token', async () => {
+        server = await buildServer();
+        const expired = JWT.sign(
+            { permissions: ['dog.feed'] },
+            'test-secret',
+            { algorithm: 'HS256', issuer: 'RestNio', expiresIn: '-10s' }
+        );
+        const res = await request('GET', `${server.url}/feed`, {
+            headers: { token: expired }
+        });
+        res.status.should.equal(401);
+    });
+
+    it('returns 401 (not 500) for a malformed token', async () => {
+        server = await buildServer();
+        const res = await request('GET', `${server.url}/feed`, {
+            headers: { token: 'not.a.jwt' }
+        });
+        res.status.should.equal(401);
     });
 });
