@@ -6,7 +6,7 @@ These route keys are pre-registered and can be replaced via `router.on()` or `op
 |-----|---------------|-----------------|
 | `'404'` | No route matched | `throw [404, 'page not found']` |
 | `'403'` | Permission check failed | `throw [403, 'permission error']` |
-| `'500'` | Unhandled exception | `throw [500, 'internal server error']` |
+| `'500'` | Route threw something other than `[code, msg]` (params: `{ error }`) | no-op; error still sent to client as `err.toString()` (500) |
 | `'wsConnect'` | WebSocket client connects | no-op (no MOTD) |
 | `'wsClose'` | WebSocket client disconnects | no-op |
 | `'wsBin'` | Unhandled binary frame arrives | `throw [400, 'no binary handler active']` |
@@ -19,8 +19,10 @@ These route keys are pre-registered and can be replaced via `router.on()` or `op
 ```js
 router.on('wsConnect', () => ({ motd: 'hello!', version: '1.0' }));
 router.on('404', (params, client) => { throw [404, 'nothing here']; });
+// Observe unhandled throws. Return nothing to keep the default reply
+// (err.toString(), 500); throw a tuple to replace it.
 router.on('500', (params, client) => {
-  console.error('unhandled error', params);
+  myLogger.error({ err: params.error, route: client.lastroute }, 'unhandled');
   throw [500, 'something went wrong'];
 });
 ```
